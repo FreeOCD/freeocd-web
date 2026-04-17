@@ -1,0 +1,17 @@
+{
+  "name": "freeocd-web",
+  "private": true,
+  "description": "FreeOCD WebDebugger - A browser-based open-source debugger for ARM microcontrollers",
+  "license": "BSD-3-Clause",
+  "scripts": {
+    "lint": "eslint",
+    "lint:html": "htmlhint 'public/**/*.html'",
+    "lint:json": "node scripts/validate-json.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "htmlhint": "^1.1.0"
+  }
+}
