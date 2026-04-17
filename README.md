@@ -2,6 +2,16 @@
 
 A browser-based open-source debugger for ARM microcontrollers. Flash firmware, recover locked devices, and verify flash contents — all from your browser using WebUSB and CMSIS-DAP.
 
+## Design Philosophy
+
+A debugger is a tool that developers place their trust in during the most critical moments of development. We hold ourselves to that standard:
+
+- **Reliability** — Every flash and recover operation must complete correctly, or fail explicitly with clear guidance
+- **Stability** — Robust error recovery, bounded timeouts, and concurrency guards ensure the tool never hangs or leaves a device in an unknown state
+- **Security** — All user inputs are validated; no external network requests; least-privilege CI/CD
+- **Compatibility** — Clean browser feature detection, graceful degradation, and a modular architecture that welcomes new targets and platforms
+- **Performance** — Lightweight vanilla JS with zero build overhead; responsive UI that never blocks during long operations
+
 ## Features
 
 - **Flash** — Upload an Intel HEX file and write it to your target MCU
@@ -68,6 +78,10 @@ Safari and Firefox do not support WebUSB.
 
 See `public/targets/nordic/nrf54/nrf54l15.json` for an example target definition.
 
+## Documentation
+
+- **[AI_REVIEW.md](AI_REVIEW.md)** — Production-level code review checklist with architecture diagrams (Mermaid), 95 checklist items across 15 categories, and a CMSIS-DAP glossary. Primarily intended as a reference for AI code reviewers (Cascade, Copilot, Cursor, etc.) — human reviewers can use it as a lookup or let AI handle the systematic checks.
+
 ## Project Structure
 
 ```
@@ -82,7 +96,10 @@ public/                         # Deployable static site
 ├── targets/                    # JSON target definitions
 │   └── nordic/nrf54/           # Nordic nRF54 series
 └── lib/                        # Built dependencies (gitignored)
+scripts/                        # Development scripts
+└── validate-json.js            # Target JSON validator
 vendor/dapjs/                   # DAP.js source (git submodule)
+AI_REVIEW.md                    # Code review checklist for AI/human reviewers
 ```
 
 ## License
