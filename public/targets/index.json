@@ -1,0 +1,10 @@
+{
+  "targets": [
+    {
+      "id": "nordic/nrf54/nrf54l15",
+      "name": "nRF54L15",
+      "platform": "nordic",
+      "description": "Nordic nRF54L15 (Cortex-M33, RRAMC)"
+    }
+  ]
+}

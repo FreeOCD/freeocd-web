@@ -1,0 +1,38 @@
+{
+  "name": "nRF54L15",
+  "platform": "nordic",
+  "cpu": "cortex-m33",
+  "cputapid": "0x6ba02477",
+  "ctrlAp": {
+    "num": 2,
+    "idr": "0x32880000"
+  },
+  "eraseAllStatus": {
+    "ready": 0,
+    "readyToReset": 1,
+    "busy": 2,
+    "error": 3
+  },
+  "flashController": {
+    "type": "rramc",
+    "base": "0x5004B000",
+    "registers": {
+      "config": { "offset": "0x500", "enableValue": "0x101" },
+      "ready": { "offset": "0x400" },
+      "readyNext": { "offset": "0x404" }
+    }
+  },
+  "flash": {
+    "address": "0x00000000",
+    "size": "0x0017D000"
+  },
+  "sram": {
+    "address": "0x20000000",
+    "workAreaSize": "0x4000"
+  },
+  "usbFilters": [
+    { "vendorId": "0x2886" },
+    { "vendorId": "0x2e8a" }
+  ],
+  "capabilities": ["recover", "flash"]
+}
