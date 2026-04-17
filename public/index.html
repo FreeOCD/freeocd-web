@@ -88,6 +88,31 @@
             </div>
         </div>
 
+        <div class="card" id="rttPanel">
+            <h2>RTT (Real-Time Transfer)</h2>
+
+            <div class="form-group">
+                <label for="rttScanStart">Scan Start Address (hex)</label>
+                <input type="text" id="rttScanStart" value="20000000" placeholder="e.g., 20000000">
+            </div>
+
+            <div class="form-group">
+                <label for="rttScanRange">Scan Range (hex)</label>
+                <input type="text" id="rttScanRange" value="10000" placeholder="e.g., 10000 (64KB)">
+            </div>
+
+            <div class="form-group">
+                <label for="rttPollingInterval">Polling Interval (ms)</label>
+                <input type="number" id="rttPollingInterval" value="1" min="1" max="1000">
+            </div>
+
+            <div class="button-group">
+                <button class="btn-rtt" id="rttConnectBtn">Connect RTT</button>
+            </div>
+
+            <div class="terminal-container" id="rttTerminalContainer"></div>
+        </div>
+
         <div class="log-container">
             <h3>Operation Log</h3>
             <div class="checkbox-group">

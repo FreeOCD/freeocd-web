@@ -4,6 +4,8 @@ import { TargetManager } from './platform/target-manager.js';
 import { WebUSBTransport } from './transport/webusb-transport.js';
 import { parseIntelHex } from './core/hex-parser.js';
 import { sleep } from './core/dap-operations.js';
+import { RTTHandler } from './core/rtt-handler.js';
+import { Terminal } from './core/terminal.js';
 
 // =============================================================================
 // State
@@ -13,6 +15,16 @@ const targetManager = new TargetManager();
 let transport = null;
 let isOperationInProgress = false;
 let parsedFirmware = null;
+
+// RTT state
+let rttProcessor = null;
+let rttHandler = null;
+let terminal = null;
+let isRttConnected = false;
+let isRttPolling = false;
+let rttPollingInterval = 1; // ms
+let rttAbortController = null;
+let isReconnecting = false;
 
 // Step definitions for each operation mode
 const FLASH_STEPS_VERIFY = ['Connect', 'Mass Erase', 'Flash', 'Verify', 'Reset'];
@@ -43,7 +55,14 @@ const dom = {
     logContainer: document.querySelector('.log-container'),
     fileInfo: document.getElementById('fileInfo'),
     fileHash: document.getElementById('fileHash'),
-    fileSize: document.getElementById('fileSize')
+    fileSize: document.getElementById('fileSize'),
+    // RTT elements
+    rttPanel: document.getElementById('rttPanel'),
+    rttConnectBtn: document.getElementById('rttConnectBtn'),
+    rttScanStart: document.getElementById('rttScanStart'),
+    rttScanRange: document.getElementById('rttScanRange'),
+    rttPollingInterval: document.getElementById('rttPollingInterval'),
+    rttTerminalContainer: document.getElementById('rttTerminalContainer')
 };
 
 // =============================================================================
@@ -264,6 +283,253 @@ function resetStepProgress() {
 }
 
 // =============================================================================
+// RTT Operations
+// =============================================================================
+
+async function connectRtt() {
+    if (isRttConnected) {
+        return;
+    }
+
+    try {
+        log('=== RTT Connection ===', 'info');
+        updateStatus('Selecting device for RTT...', false, true);
+
+        transport = new WebUSBTransport();
+        await transport.selectDevice(targetManager.getUsbFilters());
+
+        const deviceName = transport.getDeviceName();
+        log(`Device selected: ${deviceName}`, 'success');
+
+        // Create CortexM processor for RTT
+        rttProcessor = new DAPjs.CortexM(transport.getTransport());
+        await rttProcessor.connect();
+        log('DAP connected for RTT', 'success');
+
+        // Halt and reset to ensure clean state
+        await rttProcessor.softReset();
+        await sleep(1000);
+        await rttProcessor.halt();
+
+        // Get RTT settings
+        const scanStart = parseInt(dom.rttScanStart.value, 16) || 0x20000000;
+        const scanRange = parseInt(dom.rttScanRange.value, 16) || 0x10000;
+        rttPollingInterval = parseInt(dom.rttPollingInterval.value) || 1;
+
+        log(`Scanning for RTT at 0x${scanStart.toString(16)} (range: 0x${scanRange.toString(16)})`, 'info');
+
+        // Initialize RTT handler
+        rttHandler = new RTTHandler(rttProcessor, {
+            scanStartAddress: scanStart,
+            scanRange: scanRange
+        });
+
+        const numBufs = await rttHandler.init();
+        if (numBufs < 0) {
+            throw new Error('RTT control block not found');
+        }
+
+        log(`RTT initialized: ${numBufs} buffers found`, 'success');
+
+        // Resume target
+        await rttProcessor.resume();
+
+        // Initialize terminal
+        if (!terminal) {
+            terminal = new Terminal(dom.rttTerminalContainer, {
+                onSend: (data) => sendToRtt(data),
+                onClear: () => log('Terminal cleared', 'info'),
+                onSave: (text) => saveRttLog(text)
+            });
+            terminal.init();
+        }
+
+        terminal.enable();
+        terminal.focus();
+
+        // Start polling
+        startRttPolling();
+
+        isRttConnected = true;
+        dom.rttConnectBtn.textContent = 'Disconnect RTT';
+        updateStatus(`RTT Connected: ${deviceName}`, true, false);
+
+        // Disable Flash/Recover buttons
+        dom.btnFlash.disabled = true;
+        dom.btnRecover.disabled = true;
+
+        log('=== RTT Connected Successfully ===', 'success');
+
+    } catch (error) {
+        log(`RTT connection error: ${error.message}`, 'error');
+        updateStatus('RTT connection failed', false, false);
+        await cleanupRtt();
+    }
+}
+
+async function disconnectRtt() {
+    if (!isRttConnected) {
+        return;
+    }
+
+    log('Disconnecting RTT...', 'info');
+
+    // Stop polling
+    stopRttPolling();
+
+    // Abort any reconnection in progress
+    if (isReconnecting && rttAbortController) {
+        rttAbortController.abort();
+        isReconnecting = false;
+        log('Reconnection aborted', 'info');
+    }
+
+    await cleanupRtt();
+
+    isRttConnected = false;
+    dom.rttConnectBtn.textContent = 'Connect RTT';
+    updateStatus('RTT Disconnected', false, false);
+
+    // Re-enable Flash/Recover buttons
+    if (parsedFirmware) {
+        dom.btnFlash.disabled = false;
+    }
+    dom.btnRecover.disabled = false;
+
+    log('RTT disconnected', 'success');
+}
+
+async function cleanupRtt() {
+    stopRttPolling();
+
+    if (rttProcessor) {
+        try {
+            await rttProcessor.disconnect();
+        } catch (_) { /* ignore */ }
+        rttProcessor = null;
+    }
+
+    if (transport) {
+        try {
+            await transport.close();
+        } catch (_) { /* ignore */ }
+        transport = null;
+    }
+
+    rttHandler = null;
+
+    if (terminal) {
+        terminal.disable();
+    }
+}
+
+function startRttPolling() {
+    if (isRttPolling) {
+        return;
+    }
+
+    isRttPolling = true;
+    rttAbortController = new AbortController();
+
+    async function pollLoop() {
+        while (isRttPolling && !rttAbortController.signal.aborted) {
+            try {
+                if (rttHandler && isRttConnected) {
+                    // Read from target
+                    const data = await rttHandler.read(0);
+                    if (data.length > 0) {
+                        const text = new TextDecoder().decode(data);
+                        if (terminal) {
+                            terminal.write(text, 'output');
+                        }
+                    }
+
+                    // Update buffer info
+                    const bufInfo = rttHandler.getBufferInfo(0, true);
+                    if (terminal && bufInfo) {
+                        terminal.updateBufferInfo(bufInfo);
+                    }
+                }
+            } catch (error) {
+                if (!rttAbortController.signal.aborted) {
+                    log(`RTT polling error: ${error.message}`, 'warning');
+                }
+            }
+
+            await sleep(rttPollingInterval);
+        }
+    }
+
+    pollLoop();
+}
+
+function stopRttPolling() {
+    isRttPolling = false;
+    if (rttAbortController) {
+        rttAbortController.abort();
+        rttAbortController = null;
+    }
+}
+
+async function sendToRtt(data) {
+    if (!rttHandler || !isRttConnected) {
+        return;
+    }
+
+    try {
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(data);
+        const result = await rttHandler.write(0, bytes);
+        if (result < 0) {
+            log('RTT buffer full, data not sent', 'warning');
+        }
+    } catch (error) {
+        log(`RTT send error: ${error.message}`, 'error');
+    }
+}
+
+function saveRttLog(text) {
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rtt-log-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    log('RTT log saved', 'success');
+}
+
+async function reconnectRtt() {
+    if (isReconnecting || isRttConnected) {
+        return;
+    }
+
+    isReconnecting = true;
+    rttAbortController = new AbortController();
+
+    log('Attempting to reconnect RTT...', 'info');
+
+    try {
+        // Wait a bit for device to stabilize
+        await sleep(1000);
+
+        // Check if aborted
+        if (rttAbortController.signal.aborted) {
+            log('Reconnection aborted by user', 'info');
+            return;
+        }
+
+        await connectRtt();
+
+    } catch (error) {
+        log(`RTT reconnection failed: ${error.message}`, 'error');
+    } finally {
+        isReconnecting = false;
+        rttAbortController = null;
+    }
+}
+
+// =============================================================================
 // Operations
 // =============================================================================
 
@@ -272,6 +538,13 @@ async function runFlash() {
     if (!parsedFirmware) {
         log('Please select a firmware file first', 'warning');
         return;
+    }
+
+    // Disconnect RTT if connected
+    const wasRttConnected = isRttConnected;
+    if (isRttConnected) {
+        log('RTT is connected, disconnecting for flash operation...', 'info');
+        await disconnectRtt();
     }
 
     clearLog();
@@ -349,6 +622,12 @@ async function runFlash() {
         updateStatus('Operation completed', true, false);
         log('=== Flash Completed Successfully ===', 'success');
 
+        // Attempt to reconnect RTT if it was connected before
+        if (wasRttConnected) {
+            log('Attempting to reconnect RTT after flash...', 'info');
+            await reconnectRtt();
+        }
+
     } catch (error) {
         log(`Error: ${error.message}`, 'error');
         failStep(stepIdx);
@@ -365,6 +644,13 @@ async function runFlash() {
 
 async function runRecover() {
     if (isOperationInProgress) return;
+
+    // Disconnect RTT if connected
+    const wasRttConnected = isRttConnected;
+    if (isRttConnected) {
+        log('RTT is connected, disconnecting for recover operation...', 'info');
+        await disconnectRtt();
+    }
 
     clearLog();
     isOperationInProgress = true;
@@ -411,6 +697,12 @@ async function runRecover() {
         await dap.disconnect();
         updateStatus('Operation completed', true, false);
         log('=== Recover Completed Successfully ===', 'success');
+
+        // Attempt to reconnect RTT if it was connected before
+        if (wasRttConnected) {
+            log('Attempting to reconnect RTT after recover...', 'info');
+            await reconnectRtt();
+        }
 
     } catch (error) {
         log(`Error: ${error.message}`, 'error');
@@ -512,6 +804,17 @@ async function init() {
     dom.verifyCheckbox.addEventListener('change', onVerifyChange);
     dom.btnFlash.addEventListener('click', runFlash);
     dom.btnRecover.addEventListener('click', runRecover);
+
+    // RTT events
+    if (dom.rttConnectBtn) {
+        dom.rttConnectBtn.addEventListener('click', async () => {
+            if (isRttConnected) {
+                await disconnectRtt();
+            } else {
+                await connectRtt();
+            }
+        });
+    }
 
     // Check WebUSB support
     if (!WebUSBTransport.isSupported()) {
