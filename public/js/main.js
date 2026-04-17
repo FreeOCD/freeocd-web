@@ -47,6 +47,7 @@ const dom = {
     btnRecover: document.getElementById('btnRecover'),
     statusIndicator: document.getElementById('statusIndicator'),
     deviceStatus: document.getElementById('deviceStatus'),
+    operationStatus: document.getElementById('operationStatus'),
     stepPreview: document.getElementById('stepPreview'),
     stepPreviewList: document.getElementById('stepPreviewList'),
     stepProgress: document.getElementById('stepProgress'),
@@ -122,6 +123,15 @@ function updateStatus(status, connected = false, busy = false) {
         dom.statusIndicator.classList.add('status-disconnected');
     }
     dom.deviceStatus.textContent = status;
+    
+    // Update operation status
+    if (busy) {
+        dom.operationStatus.textContent = 'Operation in progress...';
+    } else if (connected) {
+        dom.operationStatus.textContent = 'Ready';
+    } else {
+        dom.operationStatus.textContent = 'Ready';
+    }
 }
 
 function setButtonsEnabled(enabled) {

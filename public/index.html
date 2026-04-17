@@ -27,99 +27,117 @@
         <h1>FreeOCD WebDebugger</h1>
         <p class="subtitle">A browser-based open-source debugger for ARM microcontrollers using WebUSB and CMSIS-DAP.</p>
 
-        <div class="card">
-            <h2>Configuration</h2>
+        <!-- Flasher Section -->
+        <div class="section">
+            <h2 class="section-title">⚡ Flasher</h2>
+            
+            <div class="card">
+                <h3>⚙️ Configuration</h3>
 
-            <div class="form-group">
-                <label for="targetSelect">Target MCU</label>
-                <select id="targetSelect" disabled>
-                    <option value="">Loading targets...</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="hexFile">Firmware File (.hex)</label>
-                <input type="file" id="hexFile" accept=".hex" disabled>
-            </div>
-
-            <div class="file-info" id="fileInfo" style="display: none;">
-                <div class="file-info-item">
-                    <span class="file-info-label">SHA-256:</span>
-                    <span class="file-info-value" id="fileHash">-</span>
+                <div class="form-group">
+                    <label for="targetSelect">Target MCU</label>
+                    <select id="targetSelect" disabled>
+                        <option value="">Loading targets...</option>
+                    </select>
                 </div>
-                <div class="file-info-item">
-                    <span class="file-info-label">File Size:</span>
-                    <span class="file-info-value" id="fileSize">-</span>
+
+                <div class="form-group">
+                    <label for="hexFile">Firmware File (.hex)</label>
+                    <input type="file" id="hexFile" accept=".hex" disabled>
+                </div>
+
+                <div class="file-info" id="fileInfo" style="display: none;">
+                    <div class="file-info-item">
+                        <span class="file-info-label">SHA-256:</span>
+                        <span class="file-info-value" id="fileHash">-</span>
+                    </div>
+                    <div class="file-info-item">
+                        <span class="file-info-label">File Size:</span>
+                        <span class="file-info-value" id="fileSize">-</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="verifyCheckbox" checked>
+                    <label for="verifyCheckbox">Verify after flashing</label>
                 </div>
             </div>
 
-            <div class="checkbox-group">
-                <input type="checkbox" id="verifyCheckbox" checked>
-                <label for="verifyCheckbox">Verify after flashing</label>
+            <div class="card">
+                <h3>📤 Operations</h3>
+
+                <div class="warning-box">
+                    <p><strong>⚠️ Warning:</strong> These operations will erase all data on the device. Make sure you have backed up any important data before proceeding.</p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-flash" id="btnFlash" disabled>📤 Flash</button>
+                    <button class="btn-recover hidden" id="btnRecover" disabled>🔄 Recover (Mass Erase)</button>
+                </div>
+
+                <!-- Step preview (shown before execution) -->
+                <div class="step-preview" id="stepPreview">
+                    <h4>Steps</h4>
+                    <div class="step-preview-list" id="stepPreviewList"></div>
+                </div>
+
+                <!-- Step progress (shown during execution) -->
+                <div class="step-progress" id="stepProgress">
+                    <ul class="step-list" id="stepList"></ul>
+                </div>
             </div>
         </div>
 
-        <div class="card">
-            <h2>Operations</h2>
+        <!-- Debugger Section -->
+        <div class="section">
+            <h2 class="section-title">💻 Debugger (RTT)</h2>
+            
+            <div class="card" id="rttPanel">
+                <div class="form-group">
+                    <label for="rttScanStart">Scan Start Address (hex)</label>
+                    <input type="text" id="rttScanStart" value="20000000" placeholder="e.g., 20000000">
+                </div>
 
-            <div class="warning-box">
-                <p><strong>Warning:</strong> These operations will erase all data on the device. Make sure you have backed up any important data before proceeding.</p>
-            </div>
+                <div class="form-group">
+                    <label for="rttScanRange">Scan Range (hex)</label>
+                    <input type="text" id="rttScanRange" value="10000" placeholder="e.g., 10000 (64KB)">
+                </div>
 
-            <div class="device-status">
-                <span class="status-indicator status-disconnected" id="statusIndicator"></span>
-                <span id="deviceStatus">No device connected</span>
-            </div>
+                <div class="form-group">
+                    <label for="rttPollingInterval">Polling Interval (ms)</label>
+                    <input type="number" id="rttPollingInterval" value="1" min="1" max="1000">
+                </div>
 
-            <div class="button-group">
-                <button class="btn-flash" id="btnFlash" disabled>Flash</button>
-                <button class="btn-recover hidden" id="btnRecover" disabled>Recover (Mass Erase)</button>
-            </div>
+                <div class="button-group">
+                    <button class="btn-rtt" id="rttConnectBtn">🔌 Connect RTT</button>
+                </div>
 
-            <!-- Step preview (shown before execution) -->
-            <div class="step-preview" id="stepPreview">
-                <h3>Steps</h3>
-                <div class="step-preview-list" id="stepPreviewList"></div>
-            </div>
-
-            <!-- Step progress (shown during execution) -->
-            <div class="step-progress" id="stepProgress">
-                <ul class="step-list" id="stepList"></ul>
+                <div class="terminal-container" id="rttTerminalContainer"></div>
             </div>
         </div>
 
-        <div class="card" id="rttPanel">
-            <h2>RTT (Real-Time Transfer)</h2>
-
-            <div class="form-group">
-                <label for="rttScanStart">Scan Start Address (hex)</label>
-                <input type="text" id="rttScanStart" value="20000000" placeholder="e.g., 20000000">
+        <!-- Log Section -->
+        <div class="section">
+            <h2 class="section-title">📋 Operation Log</h2>
+            
+            <div class="log-container">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoScrollCheckbox" checked>
+                    <label for="autoScrollCheckbox">Auto-scroll</label>
+                </div>
+                <div id="log"></div>
             </div>
-
-            <div class="form-group">
-                <label for="rttScanRange">Scan Range (hex)</label>
-                <input type="text" id="rttScanRange" value="10000" placeholder="e.g., 10000 (64KB)">
-            </div>
-
-            <div class="form-group">
-                <label for="rttPollingInterval">Polling Interval (ms)</label>
-                <input type="number" id="rttPollingInterval" value="1" min="1" max="1000">
-            </div>
-
-            <div class="button-group">
-                <button class="btn-rtt" id="rttConnectBtn">Connect RTT</button>
-            </div>
-
-            <div class="terminal-container" id="rttTerminalContainer"></div>
         </div>
+    </div>
 
-        <div class="log-container">
-            <h3>Operation Log</h3>
-            <div class="checkbox-group">
-                <input type="checkbox" id="autoScrollCheckbox" checked>
-                <label for="autoScrollCheckbox">Auto-scroll</label>
-            </div>
-            <div id="log"></div>
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+        <div class="status-bar-left">
+            <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+            <span id="deviceStatus">No device connected</span>
+        </div>
+        <div class="status-bar-right">
+            <span id="operationStatus">Ready</span>
         </div>
     </div>
 
