@@ -444,7 +444,7 @@ function onFileChange(event) {
             const hash = await calculateSHA256(parsedFirmware.data);
 
             dom.fileHash.textContent = hash;
-            dom.fileSize.textContent = formatFileSize(parsedFirmware.size);
+            dom.fileSize.textContent = `${formatFileSize(file.size)} (${formatFileSize(parsedFirmware.size)} actual)`;
             dom.fileInfo.style.display = 'block';
 
             updateStepPreview();
