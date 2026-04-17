@@ -19,6 +19,7 @@ A debugger is a tool that developers place their trust in during the most critic
 - **Flash** — Upload an Intel HEX file and write it to your target MCU
 - **Recover** — Mass erase locked devices via platform-specific access ports (e.g., Nordic CTRL-AP)
 - **Verify** — Read back and compare flashed firmware byte-by-byte (optional)
+- **RTT (Real-Time Transfer)** — Bidirectional terminal communication using SEGGER RTT protocol with configurable scan range and polling interval
 - **Extensible** — Add new target MCUs via JSON definition files; add new platforms via handler modules
 
 ## Supported Targets
@@ -56,11 +57,21 @@ Open `http://localhost:8000` in Chrome or Edge.
 
 ### Usage
 
+#### Flashing Firmware
+
 1. Accept the disclaimer
 2. Select your target MCU from the dropdown
 3. Choose a firmware `.hex` file
 4. Click **Flash** to erase and program the device
 5. (Optional) Click **Recover** to mass erase a locked device without flashing
+
+#### RTT Terminal
+
+1. Configure RTT scan settings (start address, range, polling interval)
+2. Click **Connect RTT** to establish RTT connection
+3. Use the terminal to send commands and view output
+4. Click **Disconnect RTT** to close the connection
+5. Note: RTT connection is automatically disconnected during Flash/Recover operations and reconnected after completion
 
 ## Supported Browsers
 
