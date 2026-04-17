@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Lint – ESLint, HTMLHint, JSON validation (runs in parallel with build)
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: ESLint
+        id: eslint
+        run: npm run lint
+
+      - name: HTMLHint
+        id: htmlhint
+        run: npm run lint:html
+
+      - name: Validate target JSON
+        id: json
+        run: npm run lint:json
+
+      - name: Lint summary
+        if: always()
+        run: |
+          status() { [ "$1" = "success" ] && echo "✅" || echo "❌"; }
+          echo "## Lint Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ESLint | $(status ${{ steps.eslint.outcome }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| HTMLHint | $(status ${{ steps.htmlhint.outcome }}) |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| JSON validation | $(status ${{ steps.json.outcome }}) |" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Build – verify dapjs builds on Node 20 & 22 (matrix)
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Cache dapjs node_modules
+        uses: actions/cache@v4
+        with:
+          path: vendor/dapjs/node_modules
+          key: dapjs-${{ runner.os }}-node${{ matrix.node-version }}-${{ hashFiles('vendor/dapjs/package-lock.json') }}
+          restore-keys: |
+            dapjs-${{ runner.os }}-node${{ matrix.node-version }}-
+
+      - name: Build DAP.js
+        working-directory: vendor/dapjs
+        run: |
+          npm install
+          npm run build
+
+      - name: Copy build artifacts
+        run: |
+          mkdir -p public/lib
+          cp vendor/dapjs/dist/dap.umd.js public/lib/dap.umd.js
+          cp vendor/dapjs/LICENSE public/lib/dapjs-LICENSE.txt
+
+      - name: Verify build artifacts
+        run: |
+          echo "## Build Artifacts (Node ${{ matrix.node-version }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "| File | Size |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|------|" >> "$GITHUB_STEP_SUMMARY"
+          for f in public/lib/dap.umd.js public/lib/dapjs-LICENSE.txt; do
+            size=$(stat -c%s "$f")
+            echo "| \`$(basename $f)\` | ${size} bytes |" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$size" -lt 100 ]; then
+              echo "::error::$f is suspiciously small (${size} bytes)"
+              exit 1
+            fi
+          done
+
+      - name: Upload build artifact
+        if: matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: freeocd-web-public
+          path: public/
