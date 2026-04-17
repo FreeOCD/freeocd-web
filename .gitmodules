@@ -1,0 +1,3 @@
+[submodule "vendor/dapjs"]
+	path = vendor/dapjs
+	url = https://github.com/ARMmbed/dapjs
