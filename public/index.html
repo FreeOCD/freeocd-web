@@ -42,6 +42,17 @@
                 <input type="file" id="hexFile" accept=".hex" disabled>
             </div>
 
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <div class="file-info-item">
+                    <span class="file-info-label">SHA-256:</span>
+                    <span class="file-info-value" id="fileHash">-</span>
+                </div>
+                <div class="file-info-item">
+                    <span class="file-info-label">File Size:</span>
+                    <span class="file-info-value" id="fileSize">-</span>
+                </div>
+            </div>
+
             <div class="checkbox-group">
                 <input type="checkbox" id="verifyCheckbox" checked>
                 <label for="verifyCheckbox">Verify after flashing</label>

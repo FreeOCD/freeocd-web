@@ -40,8 +40,28 @@ const dom = {
     stepProgress: document.getElementById('stepProgress'),
     stepList: document.getElementById('stepList'),
     logEl: document.getElementById('log'),
-    logContainer: document.querySelector('.log-container')
+    logContainer: document.querySelector('.log-container'),
+    fileInfo: document.getElementById('fileInfo'),
+    fileHash: document.getElementById('fileHash'),
+    fileSize: document.getElementById('fileSize')
 };
+
+// =============================================================================
+// File Hash Calculation
+// =============================================================================
+
+async function calculateSHA256(data) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} bytes`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
 
 // =============================================================================
 // Logging
@@ -408,16 +428,25 @@ function onFileChange(event) {
     const file = event.target.files[0];
     if (!file) {
         parsedFirmware = null;
+        dom.fileInfo.style.display = 'none';
         updateStepPreview();
         dom.btnFlash.disabled = true;
         return;
     }
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             parsedFirmware = parseIntelHex(e.target.result);
             log(`HEX file loaded: ${parsedFirmware.size} bytes, start: 0x${parsedFirmware.startAddress.toString(16)}`, 'success');
+
+            // Calculate hash and display file info
+            const hash = await calculateSHA256(parsedFirmware.data);
+
+            dom.fileHash.textContent = hash;
+            dom.fileSize.textContent = formatFileSize(parsedFirmware.size);
+            dom.fileInfo.style.display = 'block';
+
             updateStepPreview();
             if (dom.targetSelect.value) {
                 dom.btnFlash.disabled = false;
@@ -425,6 +454,7 @@ function onFileChange(event) {
         } catch (error) {
             log(`HEX parse error: ${error.message}`, 'error');
             parsedFirmware = null;
+            dom.fileInfo.style.display = 'none';
             dom.btnFlash.disabled = true;
         }
     };
