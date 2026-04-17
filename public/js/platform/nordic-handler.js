@@ -183,11 +183,10 @@ export class NordicHandler extends PlatformHandler {
             currentTarAddress += 4;
             wordsWritten++;
 
-            // Progress update
-            const progress = (wordsWritten / totalWords) * 100;
-            onProgress(progress);
-
+            // Progress update (throttled to every 256 words)
             if (wordsWritten % 256 === 0 || wordsWritten === totalWords) {
+                const progress = (wordsWritten / totalWords) * 100;
+                onProgress(progress);
                 const bytesWritten = Math.min(wordsWritten * 4, firmwareData.length);
                 this.log(`Flashed ${bytesWritten} / ${firmwareData.length} bytes`, 'info');
             }

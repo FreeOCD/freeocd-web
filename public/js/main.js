@@ -30,6 +30,7 @@ const dom = {
     targetSelect: document.getElementById('targetSelect'),
     hexFile: document.getElementById('hexFile'),
     verifyCheckbox: document.getElementById('verifyCheckbox'),
+    autoScrollCheckbox: null,
     btnFlash: document.getElementById('btnFlash'),
     btnRecover: document.getElementById('btnRecover'),
     statusIndicator: document.getElementById('statusIndicator'),
@@ -38,7 +39,8 @@ const dom = {
     stepPreviewList: document.getElementById('stepPreviewList'),
     stepProgress: document.getElementById('stepProgress'),
     stepList: document.getElementById('stepList'),
-    logEl: document.getElementById('log')
+    logEl: document.getElementById('log'),
+    logContainer: document.querySelector('.log-container')
 };
 
 // =============================================================================
@@ -51,7 +53,10 @@ function log(message, type = 'info') {
     span.className = `log-${type}`;
     span.textContent = `[${timestamp}] ${message}\n`;
     dom.logEl.appendChild(span);
-    dom.logEl.scrollTop = dom.logEl.scrollHeight;
+    const shouldAutoScroll = dom.autoScrollCheckbox ? dom.autoScrollCheckbox.checked : true;
+    if (shouldAutoScroll) {
+        dom.logContainer.scrollTop = dom.logContainer.scrollHeight;
+    }
 }
 
 function clearLog() {
@@ -435,6 +440,9 @@ function onVerifyChange() {
 // =============================================================================
 
 async function init() {
+    // Initialize autoScrollCheckbox reference
+    dom.autoScrollCheckbox = document.getElementById('autoScrollCheckbox');
+
     // Bind events
     dom.btnAgree.addEventListener('click', onDisclaimerAccept);
     dom.targetSelect.addEventListener('change', onTargetChange);
