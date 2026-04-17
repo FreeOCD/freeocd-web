@@ -6,11 +6,44 @@ on:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build & Release
+  # ---------------------------------------------------------------------------
+  # Lint – same checks as CI to gate the release
+  # ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: HTMLHint
+        run: npm run lint:html
+
+      - name: Validate target JSON
+        run: npm run lint:json
+
+  # ---------------------------------------------------------------------------
+  # Build – produce the deployable public/ directory
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build
+    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,7 +52,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.x
+          node-version: 20
+          cache: npm
+          cache-dependency-path: vendor/dapjs/package-lock.json
 
       - name: Build DAP.js
         working-directory: vendor/dapjs
@@ -33,14 +68,69 @@ jobs:
           cp vendor/dapjs/dist/dap.umd.js public/lib/dap.umd.js
           cp vendor/dapjs/LICENSE public/lib/dapjs-LICENSE.txt
 
+      - name: Verify build artifacts
+        run: |
+          for f in public/lib/dap.umd.js public/lib/dapjs-LICENSE.txt; do
+            size=$(stat -c%s "$f")
+            if [ "$size" -lt 100 ]; then
+              echo "::error::$f is suspiciously small (${size} bytes)"
+              exit 1
+            fi
+            echo "✓ $(basename $f) (${size} bytes)"
+          done
+
       - name: Create release archive
         run: |
           VERSION=${GITHUB_REF_NAME}
           cd public
           zip -r ../freeocd-web-${VERSION}.zip .
 
+      - name: Generate checksums
+        run: |
+          sha256sum freeocd-web-*.zip > checksums-sha256.txt
+          cat checksums-sha256.txt
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            freeocd-web-*.zip
+            checksums-sha256.txt
+
+  # ---------------------------------------------------------------------------
+  # Publish – create GitHub Release (least-privilege: write only here)
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      - name: List release files
+        run: ls -la freeocd-web-*.zip checksums-sha256.txt
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: freeocd-web-*.zip
+          files: |
+            freeocd-web-*.zip
+            checksums-sha256.txt
+
+      - name: Release summary
+        if: always()
+        run: |
+          echo "## Release ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat checksums-sha256.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
