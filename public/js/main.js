@@ -63,6 +63,12 @@ function formatFileSize(bytes) {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function formatTime(seconds) {
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
 // =============================================================================
 // Logging
 // =============================================================================
@@ -154,10 +160,14 @@ function renderStepPreview(steps) {
 
 let currentSteps = [];
 let currentStepIndex = -1;
+let operationStartTime = null;
+let stepStartTimes = [];
 
 function initStepProgress(steps) {
     currentSteps = steps;
     currentStepIndex = -1;
+    operationStartTime = Date.now();
+    stepStartTimes = new Array(steps.length).fill(null);
     dom.stepProgress.classList.add('visible');
     dom.stepPreview.style.display = 'none';
 
@@ -191,6 +201,9 @@ function activateStep(index) {
         }
     }
     currentStepIndex = index;
+    if (index < stepStartTimes.length) {
+        stepStartTimes[index] = Date.now();
+    }
     if (index < currentSteps.length) {
         const el = document.getElementById(`step-${index}`);
         if (el) el.classList.add('active');
@@ -201,7 +214,26 @@ function updateStepProgress(index, percent, text) {
     const fill = document.getElementById(`step-fill-${index}`);
     const textEl = document.getElementById(`step-text-${index}`);
     if (fill) fill.style.width = `${percent}%`;
-    if (textEl) textEl.textContent = text || `${Math.round(percent)}%`;
+
+    let displayText = text || `${Math.round(percent)}%`;
+
+    // Calculate elapsed and remaining time based on individual step start time
+    const startTime = stepStartTimes[index] || operationStartTime;
+    if (startTime && percent > 0) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        displayText += ` (${formatTime(elapsed)} elapsed`;
+
+        // Show remaining time only after 1s to avoid wild estimates
+        if (elapsed >= 1) {
+            const remaining = (elapsed / percent) * (100 - percent);
+            if (remaining > 0) {
+                displayText += `, ~${formatTime(remaining)} remaining`;
+            }
+        }
+        displayText += ')';
+    }
+
+    if (textEl) textEl.textContent = displayText;
 }
 
 function completeStep(index) {
