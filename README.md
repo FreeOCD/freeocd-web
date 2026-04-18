@@ -31,11 +31,19 @@ A debugger is a tool that developers place their trust in during the most critic
 
 ## Quick Start
 
+### Try Online
+
+Visit [freeocd.org](https://freeocd.org) to use the WebDebugger directly in your browser — no build or server setup required.
+
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20+ recommended) — for building DAP.js
+**For Online Use:**
 - A Chromium-based browser (Chrome, Edge) — WebUSB is required
 - A CMSIS-DAP compatible debug probe
+
+**For Local Development:**
+- [Node.js](https://nodejs.org/) (v20+ recommended) — for building DAP.js
+- Python 3 — for running local HTTP server
 
 ### Clone & Build
 
@@ -94,7 +102,7 @@ See `public/targets/nordic/nrf54/nrf54l15.json` for an example target definition
 
 ## Documentation
 
-- **[AI_REVIEW.md](AI_REVIEW.md)** — Production-level code review checklist with architecture diagrams (Mermaid), 95 checklist items across 15 categories, and a CMSIS-DAP glossary. Primarily intended as a reference for AI code reviewers (Cascade, Copilot, Cursor, etc.) — human reviewers can use it as a lookup or let AI handle the systematic checks.
+- **[AI_REVIEW.md](AI_REVIEW.md)** — Code review checklist with architecture diagrams, systematic checks, and CMSIS-DAP glossary. Useful for both AI and human reviewers.
 
 ## Architecture
 
