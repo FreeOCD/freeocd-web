@@ -1,6 +1,7 @@
 # FreeOCD WebDebugger
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/FreeOCD/freeocd-web)
+[![CI](https://github.com/FreeOCD/freeocd-web/actions/workflows/ci.yml/badge.svg)](https://github.com/FreeOCD/freeocd-web/actions/workflows/ci.yml)
 
 A browser-based open-source debugger for ARM microcontrollers. Flash firmware, recover locked devices, and verify flash contents — all from your browser using WebUSB and CMSIS-DAP.
 
