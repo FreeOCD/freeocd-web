@@ -81,6 +81,9 @@ jobs:
           restore-keys: |
             dapjs-${{ runner.os }}-node${{ matrix.node-version }}-
 
+      - name: Install libusb-dev
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev
+
       - name: Build DAP.js
         working-directory: vendor/dapjs
         run: |
