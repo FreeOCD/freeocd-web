@@ -1,4 +1,12 @@
 // FreeOCD WebDebugger - Main application logic
+//
+// This is the entry point for the FreeOCD WebDebugger application. It handles:
+// - UI initialization and event binding
+// - Device connection via WebUSB
+// - Flash and recover operations with step-by-step progress
+// - RTT (Real-Time Transfer) terminal communication
+// - Operation locking to prevent conflicting operations
+// - State management for device and RTT connections
 
 import { TargetManager } from './platform/target-manager.js';
 import { WebUSBTransport } from './transport/webusb-transport.js';

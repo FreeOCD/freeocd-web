@@ -37,19 +37,32 @@ export const AP_DRW = 0x0C;
 // CSW value for 32-bit access with auto-increment single
 export const CSW_VALUE = 0x23000052;
 
-// Create DP.SELECT value for a given AP number and register offset
+/**
+ * Create DP.SELECT value for a given AP number and register offset
+ * @param {number} apNum - AP number (0-255)
+ * @param {number} regOffset - Register offset
+ * @returns {number} DP.SELECT value
+ */
 export function createSelectValue(apNum, regOffset) {
     const apsel = (apNum << 24) & BANK_SELECT_APSEL;
     const apbanksel = regOffset & BANK_SELECT_APBANKSEL;
     return apsel | apbanksel;
 }
 
-// Get the A[3:2] bits for the transfer request
+/**
+ * Get the A[3:2] bits for the transfer request
+ * @param {number} regOffset - Register offset
+ * @returns {number} Transfer register value (A[3:2] bits)
+ */
 export function getTransferRegister(regOffset) {
     return regOffset & 0x0C;
 }
 
-// Get the underlying transport from a proxy or DAP instance
+/**
+ * Get the underlying transport from a proxy or DAP instance
+ * @param {object} dapOrProxy - DAPjs proxy or DAP instance
+ * @returns {object|null} Transport object with write/read methods, or null
+ */
 export function getTransport(dapOrProxy) {
     const propNames = Object.getOwnPropertyNames(dapOrProxy);
     for (const name of propNames) {
@@ -61,7 +74,12 @@ export function getTransport(dapOrProxy) {
     return null;
 }
 
-// Get the underlying CmsisDAP proxy from an ADI instance
+/**
+ * Get the underlying CmsisDAP proxy from an ADI instance
+ * @param {object} dap - DAPjs ADI instance
+ * @returns {object} Proxy object with transferBlock method
+ * @throws {Error} If proxy not found
+ */
 export function getProxy(dap) {
     const propNames = Object.getOwnPropertyNames(dap);
     for (const name of propNames) {
@@ -73,7 +91,14 @@ export function getProxy(dap) {
     throw new Error('Could not find proxy object with transferBlock in ADI instance');
 }
 
-// Raw DAP_TRANSFER write that bypasses DAP.js response parsing
+/**
+ * Raw DAP_TRANSFER write that bypasses DAP.js response parsing
+ * Builds raw DAP_TRANSFER packets and only parses the 3-byte header
+ * @param {object} transport - Transport object with write/read methods
+ * @param {Array} operations - Array of transfer operation objects
+ * @returns {Promise<boolean>} True if successful
+ * @throws {Error} If transfer fails or response is invalid
+ */
 export async function rawDapTransferWrite(transport, operations) {
     const packetSize = 3 + (operations.length * 5);
     const packet = new Uint8Array(packetSize);
@@ -123,7 +148,14 @@ export async function rawDapTransferWrite(transport, operations) {
     return true;
 }
 
-// Read AP register using array-based DAP transfers with retry logic
+/**
+ * Read AP register using array-based DAP transfers with retry logic
+ * @param {object} dap - DAPjs ADI instance
+ * @param {number} apNum - AP number
+ * @param {number} regOffset - Register offset
+ * @param {number} retries - Number of retry attempts (default: 3)
+ * @returns {Promise<number|undefined>} Register value, or undefined if failed
+ */
 export async function readAPReg(dap, apNum, regOffset, retries = 3) {
     const selectValue = createSelectValue(apNum, regOffset);
     const transferReg = getTransferRegister(regOffset);
@@ -179,7 +211,16 @@ export async function readAPReg(dap, apNum, regOffset, retries = 3) {
     return undefined;
 }
 
-// Write AP register using array-based DAP transfers with retry logic
+/**
+ * Write AP register using array-based DAP transfers with retry logic
+ * @param {object} dap - DAPjs ADI instance
+ * @param {number} apNum - AP number
+ * @param {number} regOffset - Register offset
+ * @param {number} value - Value to write
+ * @param {number} retries - Number of retry attempts (default: 3)
+ * @returns {Promise<void>}
+ * @throws {Error} If write fails after all retries
+ */
 export async function writeAPReg(dap, apNum, regOffset, value, retries = 3) {
     const selectValue = createSelectValue(apNum, regOffset);
     const transferReg = getTransferRegister(regOffset);
@@ -225,7 +266,11 @@ export async function writeAPReg(dap, apNum, regOffset, value, retries = 3) {
     }
 }
 
-// Sleep utility
+/**
+ * Sleep utility for async delays
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>}
+ */
 export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }

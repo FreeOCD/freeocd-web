@@ -1,7 +1,20 @@
 // Simple Terminal UI for RTT
 // Provides a basic terminal interface without external dependencies
 
+/**
+ * Simple Terminal UI for RTT communication
+ * Provides input/output interface without external dependencies
+ */
 export class Terminal {
+    /**
+     * Create a new Terminal instance
+     * @param {HTMLElement} containerElement - Container element for the terminal
+     * @param {object} options - Configuration options
+     * @param {function} options.onSend - Callback when data is sent (data: string)
+     * @param {function} options.onClear - Callback when terminal is cleared
+     * @param {function} options.onSave - Callback when log is saved (text: string)
+     * @param {number} options.maxOutputLines - Maximum number of output lines to keep
+     */
     constructor(containerElement, options = {}) {
         this.container = containerElement;
         this.onSend = options.onSend || (() => {});
@@ -12,6 +25,10 @@ export class Terminal {
         this.maxOutputLines = options.maxOutputLines || 1000;
     }
 
+    /**
+     * Initialize the terminal UI
+     * Creates input, output, and toolbar elements
+     */
     init() {
         this.container.innerHTML = `
             <div class="terminal-toolbar">

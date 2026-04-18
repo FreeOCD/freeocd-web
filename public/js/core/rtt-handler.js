@@ -4,7 +4,20 @@
 // Portions of this file are derived from dapjs/examples/rtt/rtt.js
 // (MIT License, Copyright (C) 2021 Ciro Cattuto)
 
+/**
+ * RTT (Real-Time Transfer) Handler
+ * Implements SEGGER RTT protocol for bidirectional communication
+ */
 export class RTTHandler {
+    /**
+     * Create a new RTTHandler instance
+     * @param {object} processor - DAPjs processor instance (e.g., CortexM)
+     * @param {object} options - Configuration options
+     * @param {number} options.scanStartAddress - Start address for RTT control block scan
+     * @param {number} options.scanRange - Memory range to scan for RTT control block
+     * @param {number} options.scanBlockSize - Block size for memory reads
+     * @param {number} options.scanStride - Stride between scan windows
+     */
     constructor(processor, options = {}) {
         this.processor = processor;
         this.scanStartAddress = options.scanStartAddress || 0x20000000;
@@ -21,6 +34,10 @@ export class RTTHandler {
         this.isInitialized = false;
     }
 
+    /**
+     * Initialize RTT by locating the control block in memory
+     * @returns {Promise<number>} Number of buffers found, or -1 if not found
+     */
     async init() {
         // Locate RTT control block
         console.log("Locating RTT control block...");
@@ -94,6 +111,12 @@ export class RTTHandler {
         }).join('');
     }
 
+    /**
+     * Read data from an up-buffer (target to host)
+     * @param {number} bufId - Buffer ID (default: 0)
+     * @returns {Promise<Uint8Array>} Data read from the buffer
+     * @throws {Error} If RTT not initialized or buffer not found
+     */
     async read(bufId = 0) {
         if (!this.isInitialized) {
             throw new Error('RTT not initialized');
@@ -126,6 +149,13 @@ export class RTTHandler {
         }
     }
 
+    /**
+     * Write data to a down-buffer (host to target)
+     * @param {number} bufId - Buffer ID (default: 0)
+     * @param {Uint8Array} data - Data to write
+     * @returns {Promise<number>} Number of bytes written, or -1 if buffer full
+     * @throws {Error} If RTT not initialized or buffer not found
+     */
     async write(bufId = 0, data) {
         if (!this.isInitialized) {
             throw new Error('RTT not initialized');
@@ -161,6 +191,12 @@ export class RTTHandler {
         return data.length;
     }
 
+    /**
+     * Get buffer information
+     * @param {number} bufId - Buffer ID (default: 0)
+     * @param {boolean} isUp - True for up-buffer, false for down-buffer (default: true)
+     * @returns {object|null} Buffer info object or null if not available
+     */
     getBufferInfo(bufId = 0, isUp = true) {
         if (!this.isInitialized) {
             return null;

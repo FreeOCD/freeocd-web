@@ -30,7 +30,17 @@ const CTRL_AP_ERASEALLSTATUS = 0x008;
 const CTRL_AP_ERASEPROTECTSTATUS = 0x00C;
 const CTRL_AP_IDR_REG = 0x0FC;
 
+/**
+ * Nordic Semiconductor platform handler
+ * Implements CTRL-AP recovery, RRAMC/NVMC flash programming, verification,
+ * and reset for Nordic nRF series microcontrollers
+ */
 export class NordicHandler extends PlatformHandler {
+    /**
+     * Create a new NordicHandler instance
+     * @param {object} targetConfig - Target configuration from JSON
+     * @param {function} logger - Logging function (message, type)
+     */
     constructor(targetConfig, logger) {
         super(targetConfig, logger);
         this.ctrlApNum = targetConfig.ctrlAp.num;
@@ -42,6 +52,13 @@ export class NordicHandler extends PlatformHandler {
     // =========================================================================
     // Recover: CTRL-AP mass erase
     // =========================================================================
+    /**
+     * Perform CTRL-AP mass erase to recover locked device
+     * @param {object} dap - DAPjs.ADI instance
+     * @param {function} onProgress - Progress callback (0-100)
+     * @returns {Promise<object>} The DAP instance (may be reconnected)
+     * @throws {Error} If mass erase fails
+     */
     async recover(dap, onProgress) {
         this.log('Initializing DAP connection for recovery...', 'info');
 
@@ -117,6 +134,15 @@ export class NordicHandler extends PlatformHandler {
     // =========================================================================
     // Flash: write firmware to device
     // =========================================================================
+    /**
+     * Flash firmware data to the device
+     * @param {object} dap - DAPjs.ADI instance
+     * @param {Uint8Array} firmwareData - Binary firmware data
+     * @param {number} startAddress - Flash start address
+     * @param {function} onProgress - Progress callback (0-100)
+     * @returns {Promise<void>}
+     * @throws {Error} If flashing fails
+     */
     async flash(dap, firmwareData, startAddress, onProgress) {
         this.log(`Flashing ${firmwareData.length} bytes starting at 0x${startAddress.toString(16)}...`, 'info');
 
@@ -198,6 +224,14 @@ export class NordicHandler extends PlatformHandler {
     // =========================================================================
     // Verify: read back and compare
     // =========================================================================
+    /**
+     * Verify written firmware against original data
+     * @param {object} dap - DAPjs.ADI instance
+     * @param {Uint8Array} firmwareData - Expected firmware data
+     * @param {number} startAddress - Flash start address
+     * @param {function} onProgress - Progress callback (0-100)
+     * @returns {Promise<{success: boolean, mismatches: number}>}
+     */
     async verify(dap, firmwareData, startAddress, onProgress) {
         this.log('Verifying firmware (reading back entire image)...', 'info');
 
@@ -257,6 +291,11 @@ export class NordicHandler extends PlatformHandler {
     // =========================================================================
     // Reset via CTRL-AP
     // =========================================================================
+    /**
+     * Reset the target device via CTRL-AP
+     * @param {object} dap - DAPjs.ADI instance
+     * @returns {Promise<void>}
+     */
     async reset(dap) {
         this.log('Resetting device via CTRL-AP...', 'info');
         try {

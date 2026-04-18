@@ -1,6 +1,10 @@
 // StateManager - Centralized state management for RTT and device connections
 // Provides polling, event listeners, and automatic error handling
 
+/**
+ * Centralized state management for RTT and device connections
+ * Provides polling, event listeners, and automatic error handling
+ */
 export class StateManager {
     constructor() {
         // State
@@ -8,15 +12,15 @@ export class StateManager {
         this._isDeviceConnected = false;
         this._rttProcessor = null;
         this._rttHandler = null;
-        
+
         // Polling control
         this._isPolling = false;
         this._pollingInterval = 1000; // 1 second
         this._abortController = null;
-        
+
         // External operation flag to prevent polling interference
         this._isExternalOperationInProgress = false;
-        
+
         // Event listeners
         this._listeners = {
             stateChange: [],
@@ -26,14 +30,20 @@ export class StateManager {
             deviceDisconnected: [],
             error: []
         };
-        
+
         // Callbacks for external operations
         this._onLog = null;
         this._onUpdateStatus = null;
         this._onCleanup = null;
     }
-    
-    // Set callbacks
+
+    /**
+     * Set callbacks for state changes and error handling
+     * @param {object} callbacks - Callback functions
+     * @param {function} callbacks.onLog - Logging callback (message: string, type: string)
+     * @param {function} callbacks.onUpdateStatus - Status update callback
+     * @param {function} callbacks.onCleanup - Cleanup callback on error
+     */
     setCallbacks({ onLog, onUpdateStatus, onCleanup }) {
         this._onLog = onLog;
         this._onUpdateStatus = onUpdateStatus;

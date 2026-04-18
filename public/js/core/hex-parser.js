@@ -1,6 +1,15 @@
 // Intel HEX file parser
 // Parses Intel HEX format files into contiguous binary data with address info.
 
+/**
+ * Parse Intel HEX format string into binary data
+ * @param {string} hexString - Intel HEX format string
+ * @returns {object} Parsed firmware data with:
+ *   - data: Uint8Array of binary data
+ *   - startAddress: Starting address of the data
+ *   - size: Size of the data in bytes
+ * @throws {Error} If checksum validation fails or no data found
+ */
 export function parseIntelHex(hexString) {
     const lines = hexString.split(/\r?\n/);
     const data = [];
