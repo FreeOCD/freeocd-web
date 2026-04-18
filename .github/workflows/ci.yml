@@ -54,7 +54,7 @@ jobs:
           echo "| JSON validation | $(status ${{ steps.json.outcome }}) |" >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
-  # Build – verify dapjs builds on Node 20 & 22 (matrix)
+  # Build – verify dapjs builds on Node 22 & 24
   # ---------------------------------------------------------------------------
   build:
     name: Build (Node ${{ matrix.node-version }})
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24]
 
     steps:
       - uses: actions/checkout@v4
@@ -80,6 +80,9 @@ jobs:
           key: dapjs-${{ runner.os }}-node${{ matrix.node-version }}-${{ hashFiles('vendor/dapjs/package-lock.json') }}
           restore-keys: |
             dapjs-${{ runner.os }}-node${{ matrix.node-version }}-
+
+      - name: Install libusb-dev and libudev-dev
+        run: sudo apt-get update && sudo apt-get install -y libusb-1.0-0-dev libudev-dev
 
       - name: Build DAP.js
         working-directory: vendor/dapjs

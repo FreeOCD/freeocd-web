@@ -7,6 +7,9 @@ const PLATFORM_HANDLERS = {
     nordic: NordicHandler
 };
 
+/**
+ * Target manager for loading target definitions and instantiating platform handlers
+ */
 export class TargetManager {
     constructor() {
         this.targets = [];
@@ -14,8 +17,12 @@ export class TargetManager {
         this.currentHandler = null;
     }
 
-    // Load the target index from the server.
-    // @param {string} basePath - Base path to the targets directory (e.g., 'targets')
+    /**
+     * Load the target index from the server
+     * @param {string} basePath - Base path to the targets directory (e.g., 'targets')
+     * @returns {Promise<Array>} Array of target objects
+     * @throws {Error} If loading fails
+     */
     async loadTargetIndex(basePath = 'targets') {
         const response = await fetch(`${basePath}/index.json`);
         if (!response.ok) {
@@ -26,10 +33,13 @@ export class TargetManager {
         return this.targets;
     }
 
-    // Load a specific target configuration by ID.
-    // @param {string} targetId - Target ID (e.g., 'nordic/nrf54/nrf54l15')
-    // @param {string} basePath - Base path to the targets directory
-    // @returns {Promise<object>} The target configuration object
+    /**
+     * Load a specific target configuration by ID
+     * @param {string} targetId - Target ID (e.g., 'nordic/nrf54/nrf54l15')
+     * @param {string} basePath - Base path to the targets directory
+     * @returns {Promise<object>} The target configuration object
+     * @throws {Error} If loading fails
+     */
     async loadTarget(targetId, basePath = 'targets') {
         const response = await fetch(`${basePath}/${targetId}.json`);
         if (!response.ok) {
@@ -39,9 +49,12 @@ export class TargetManager {
         return this.currentTarget;
     }
 
-    // Create a platform handler for the currently loaded target.
-    // @param {function} logger - Logging function (message, type)
-    // @returns {PlatformHandler} The platform handler instance
+    /**
+     * Create a platform handler for the currently loaded target
+     * @param {function} logger - Logging function (message, type)
+     * @returns {PlatformHandler} The platform handler instance
+     * @throws {Error} If no target loaded or platform not found
+     */
     createHandler(logger) {
         if (!this.currentTarget) {
             throw new Error('No target loaded. Call loadTarget() first.');
@@ -58,8 +71,10 @@ export class TargetManager {
         return this.currentHandler;
     }
 
-    // Get USB filters for the current target (for WebUSB device selection).
-    // @returns {Array} USB filter objects
+    /**
+     * Get USB filters for the current target (for WebUSB device selection)
+     * @returns {Array} USB filter objects
+     */
     getUsbFilters() {
         if (!this.currentTarget || !this.currentTarget.usbFilters) {
             return [];
@@ -67,8 +82,10 @@ export class TargetManager {
         return this.currentTarget.usbFilters;
     }
 
-    // Get capabilities of the current target.
-    // @returns {Array<string>} Capability strings (e.g., ['recover', 'flash'])
+    /**
+     * Get capabilities of the current target
+     * @returns {Array<string>} Capability strings (e.g., ['recover', 'flash'])
+     */
     getCapabilities() {
         if (!this.currentTarget || !this.currentTarget.capabilities) {
             return ['flash'];
@@ -76,9 +93,11 @@ export class TargetManager {
         return this.currentTarget.capabilities;
     }
 
-    // Check if the current target supports a specific capability.
-    // @param {string} capability - Capability name
-    // @returns {boolean}
+    /**
+     * Check if the current target supports a specific capability
+     * @param {string} capability - Capability name
+     * @returns {boolean} True if capability is supported
+     */
     hasCapability(capability) {
         return this.getCapabilities().includes(capability);
     }
