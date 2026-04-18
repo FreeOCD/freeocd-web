@@ -12,37 +12,37 @@ export class PlatformHandler {
     }
 
     // Perform platform-specific device recovery (e.g., Nordic CTRL-AP mass erase).
-    // @param {object} dap - DAPjs.ADI instance
-    // @param {function} onProgress - Progress callback (0-100)
+    // @param {object} _dap - DAPjs.ADI instance
+    // @param {function} _onProgress - Progress callback (0-100)
     // @returns {Promise<object>} The DAP instance (may be reconnected)
-    async recover(dap, onProgress) {
+    async recover(_dap, _onProgress) {
         throw new Error('recover() must be implemented by platform handler');
     }
 
     // Flash firmware data to the device.
-    // @param {object} dap - DAPjs.ADI instance
-    // @param {Uint8Array} firmwareData - Binary firmware data
-    // @param {number} startAddress - Flash start address
-    // @param {function} onProgress - Progress callback (0-100)
+    // @param {object} _dap - DAPjs.ADI instance
+    // @param {Uint8Array} _firmwareData - Binary firmware data
+    // @param {number} _startAddress - Flash start address
+    // @param {function} _onProgress - Progress callback (0-100)
     // @returns {Promise<void>}
-    async flash(dap, firmwareData, startAddress, onProgress) {
+    async flash(_dap, _firmwareData, _startAddress, _onProgress) {
         throw new Error('flash() must be implemented by platform handler');
     }
 
     // Verify written firmware against original data.
-    // @param {object} dap - DAPjs.ADI instance
-    // @param {Uint8Array} firmwareData - Expected firmware data
-    // @param {number} startAddress - Flash start address
-    // @param {function} onProgress - Progress callback (0-100)
+    // @param {object} _dap - DAPjs.ADI instance
+    // @param {Uint8Array} _firmwareData - Expected firmware data
+    // @param {number} _startAddress - Flash start address
+    // @param {function} _onProgress - Progress callback (0-100)
     // @returns {Promise<{success: boolean, mismatches: number}>}
-    async verify(dap, firmwareData, startAddress, onProgress) {
+    async verify(_dap, _firmwareData, _startAddress, _onProgress) {
         throw new Error('verify() must be implemented by platform handler');
     }
 
     // Reset the target device.
-    // @param {object} dap - DAPjs.ADI instance
+    // @param {object} _dap - DAPjs.ADI instance
     // @returns {Promise<void>}
-    async reset(dap) {
+    async reset(_dap) {
         throw new Error('reset() must be implemented by platform handler');
     }
 
