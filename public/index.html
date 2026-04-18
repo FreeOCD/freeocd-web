@@ -27,52 +27,64 @@
         <h1>FreeOCD WebDebugger</h1>
         <p class="subtitle">A browser-based open-source debugger for ARM microcontrollers using WebUSB and CMSIS-DAP.</p>
 
+        <!-- Configuration Section -->
+        <div class="section">
+            <h2 class="section-title">⚙️ Configuration</h2>
+            
+            <div class="card">
+                <div class="card-header-inline">
+                    <h3>🔌 Connection Method</h3>
+                    <select id="connectionMethod">
+                        <option value="webusb">WebUSB</option>
+                    </select>
+                </div>
+                <div class="card-header-inline">
+                    <h3>🎯 Target MCU</h3>
+                    <select id="targetSelect" disabled>
+                        <option value="">Loading targets...</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
         <!-- Flasher Section -->
         <div class="section">
             <h2 class="section-title">⚡ Flasher</h2>
             
             <div class="card">
-                <h3>⚙️ Configuration</h3>
-
-                <div class="form-group">
-                    <label for="targetSelect">Target MCU</label>
-                    <select id="targetSelect" disabled>
-                        <option value="">Loading targets...</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="hexFile">Firmware File (.hex)</label>
+                <div class="step-preview">
+                    <h4>Select a firmware file</h4>
                     <input type="file" id="hexFile" accept=".hex" disabled>
                 </div>
-
-                <div class="file-info" id="fileInfo" style="display: none;">
-                    <div class="file-info-item">
-                        <span class="file-info-label">SHA-256:</span>
-                        <span class="file-info-value" id="fileHash">-</span>
+                <div class="form-group-inline">
+                    <div class="form-group-file form-group-file-with-border">
+                        <div class="file-info" id="fileInfo">
+                            <div class="file-info-item">
+                                <span class="file-info-label">File Name:</span>
+                                <span class="file-info-value" id="fileName">-</span>
+                            </div>
+                            <div class="file-info-item">
+                                <span class="file-info-label">SHA-256:</span>
+                                <span class="file-info-value" id="fileHash">-</span>
+                            </div>
+                            <div class="file-info-item">
+                                <span class="file-info-label">File Size:</span>
+                                <span class="file-info-value" id="fileSize">-</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="file-info-item">
-                        <span class="file-info-label">File Size:</span>
-                        <span class="file-info-value" id="fileSize">-</span>
+                    <div class="form-group-file">
+                        <div class="form-group-actions">
+                            <div class="button-row">
+                                <button class="btn-flash" id="btnFlash" disabled>📤 Flash</button>
+                                <button class="btn-recover hidden" id="btnRecover" disabled>🔄 Recover</button>
+                            </div>
+                            <div class="checkbox-group">
+                                <input type="checkbox" id="verifyCheckbox" checked>
+                                <label for="verifyCheckbox">Verify after flashing</label>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="checkbox-group">
-                    <input type="checkbox" id="verifyCheckbox" checked>
-                    <label for="verifyCheckbox">Verify after flashing</label>
-                </div>
-            </div>
-
-            <div class="card">
-                <h3>📤 Operations</h3>
-
-                <div class="warning-box">
-                    <p><strong>⚠️ Warning:</strong> These operations will erase all data on the device. Make sure you have backed up any important data before proceeding.</p>
-                </div>
-
-                <div class="button-group">
-                    <button class="btn-flash" id="btnFlash" disabled>📤 Flash</button>
-                    <button class="btn-recover hidden" id="btnRecover" disabled>🔄 Recover (Mass Erase)</button>
                 </div>
 
                 <!-- Step preview (shown before execution) -->
@@ -93,23 +105,125 @@
             <h2 class="section-title">💻 Debugger (RTT)</h2>
             
             <div class="card" id="rttPanel">
-                <div class="form-group">
-                    <label for="rttScanStart">Scan Start Address (hex)</label>
-                    <input type="text" id="rttScanStart" value="20000000" placeholder="e.g., 20000000">
+                <div class="debug-controls-row">
+                    <div class="button-group">
+                        <button class="btn-rtt" id="rttConnectBtn">▶️ Connect RTT</button>
+                        <button class="btn-reset-soft" id="btnSoftReset">🔄 Soft Reset</button>
+                    </div>
+
+                    <!-- Collapsible Settings -->
+                    <div class="collapsible">
+                        <div class="collapsible-header collapsed" id="rttSettingsToggle">
+                            <span>⚙️ RTT Settings</span>
+                            <span class="collapsible-icon">▼</span>
+                        </div>
+                        <div class="collapsible-content collapsed" id="rttSettingsContent">
+                            <div class="card-header-inline step-preview">
+                                <h4>Scan Start Address (hex)</h4>
+                                <div class="form-group-file">
+                                    <input type="text" id="rttScanStart" value="20000000" placeholder="e.g., 20000000">
+                                </div>
+                            </div>
+
+                            <div class="card-header-inline step-preview">
+                                <h4>Scan Range (hex)</h4>
+                                <div class="form-group-file">
+                                    <input type="text" id="rttScanRange" value="10000" placeholder="e.g., 10000 (64KB)">
+                                </div>
+                            </div>
+
+                            <div class="card-header-inline step-preview">
+                                <h4>Polling Interval (ms)</h4>
+                                <div class="form-group-file">
+                                    <input type="number" id="rttPollingInterval" value="10" min="1" max="1000">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="rttScanRange">Scan Range (hex)</label>
-                    <input type="text" id="rttScanRange" value="10000" placeholder="e.g., 10000 (64KB)">
-                </div>
+                <!-- Collapsible Advanced Debug -->
+                <div class="collapsible">
+                    <div class="collapsible-header collapsed" id="advancedDebugToggle">
+                        <span>🔧 Advanced Debug (Experimental)</span>
+                        <span class="collapsible-icon">▼</span>
+                    </div>
+                    <div class="collapsible-content collapsed" id="advancedDebugContent">
+                        <!-- Read Device ID -->
+                        <div class="card-header-inline step-preview">
+                            <h4>Device Info</h4>
+                            <div class="form-group-file">
+                                <button class="btn-utility" id="btnReadDeviceId">📋 Read Device ID</button>
+                            </div>
+                        </div>
 
-                <div class="form-group">
-                    <label for="rttPollingInterval">Polling Interval (ms)</label>
-                    <input type="number" id="rttPollingInterval" value="1" min="1" max="1000">
-                </div>
+                        <!-- Core Control -->
+                        <div class="card-header-inline step-preview">
+                            <h4>Core Control</h4>
+                            <div class="button-row">
+                                <button class="btn-utility" id="btnHalt">⏸️ Halt</button>
+                                <button class="btn-utility" id="btnResume">▶️ Resume</button>
+                                <button class="btn-utility" id="btnGetCoreState">🔍 Get Core State</button>
+                                <button class="btn-reset-hard" id="btnHardReset">⚡ Hard Reset</button>
+                            </div>
+                        </div>
 
-                <div class="button-group">
-                    <button class="btn-rtt" id="rttConnectBtn">🔌 Connect RTT</button>
+                        <!-- Read Memory -->
+                        <div class="card-header-inline step-preview">
+                            <h4>Read Memory</h4>
+                            <div class="form-group-file">
+                                <input type="text" id="memReadAddress" value="20000000" placeholder="Address (hex)">
+                            </div>
+                            <div class="form-group-file">
+                                <input type="number" id="memReadLength" value="64" placeholder="Length (bytes)">
+                            </div>
+                            <div class="form-group-file">
+                                <button class="btn-utility" id="btnReadMemory">📖 Read</button>
+                            </div>
+                        </div>
+
+                        <!-- Write Memory -->
+                        <div class="card-header-inline step-preview">
+                            <h4>Write Memory</h4>
+                            <div class="form-group-file">
+                                <input type="text" id="memWriteAddress" value="20000000" placeholder="Address (hex)">
+                            </div>
+                            <div class="form-group-file">
+                                <input type="text" id="memWriteData" placeholder="Data (hex, e.g. 01 02 03)">
+                            </div>
+                            <div class="form-group-file">
+                                <button class="btn-utility" id="btnWriteMemory">✏️ Write</button>
+                            </div>
+                        </div>
+
+                        <!-- SWJ Pins Control -->
+                        <div class="card-header-inline step-preview">
+                            <h4>SWJ Pins</h4>
+                            <div class="form-group-file">
+                                <input type="text" id="swjPinOutput" value="0" placeholder="Pin Output (hex)">
+                            </div>
+                            <div class="form-group-file">
+                                <input type="text" id="swjPinSelect" value="0" placeholder="Pin Select (hex)">
+                            </div>
+                            <div class="form-group-file">
+                                <input type="number" id="swjPinWait" value="0" placeholder="Wait (μs)">
+                            </div>
+                            <div class="form-group-file">
+                                <button class="btn-utility" id="btnControlSwjPins">🔌 Control Pins</button>
+                            </div>
+                        </div>
+
+                        <!-- SWJ Clock -->
+                        <div class="card-header-inline step-preview">
+                            <h4>SWJ Clock</h4>
+                            <div class="form-group-file">
+                                <input type="number" id="swjClock" value="10000000" placeholder="Frequency (Hz)">
+                            </div>
+                            <div class="form-group-file">
+                                <button class="btn-utility" id="btnSetSwjClock">⏱️ Set Clock</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="terminal-container" id="rttTerminalContainer"></div>
@@ -136,15 +250,15 @@
             <span class="status-indicator status-disconnected" id="statusIndicator"></span>
             <span id="deviceStatus">No device connected</span>
         </div>
-        <div class="status-bar-right">
-            <span id="operationStatus">Ready</span>
-        </div>
     </div>
 
     <footer>
         <p>Powered by <a href="https://github.com/ARMmbed/dapjs" target="_blank">DAP.js</a> (MIT License)</p>
         <p style="margin-top: 15px;">
             <a href="https://github.com/FreeOCD/freeocd-web" target="_blank">Source Code on GitHub</a>
+        </p>
+        <p style="margin-top: 15px;">
+            <a href="https://deepwiki.com/FreeOCD/freeocd-web" target="_blank">Ask DeepWiki</a>
         </p>
         <p style="margin-top: 15px; font-size: 11px; color: #555;">
             <strong>Licenses:</strong><br>

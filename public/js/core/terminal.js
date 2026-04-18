@@ -14,18 +14,16 @@ export class Terminal {
 
     init() {
         this.container.innerHTML = `
-            <div class="terminal-container">
-                <div class="terminal-toolbar">
-                    <button class="btn-terminal-clear" id="terminalClear">Clear</button>
-                    <button class="btn-terminal-save" id="terminalSave">Save Log</button>
-                    <span class="terminal-buffer-info" id="terminalBufferInfo"></span>
-                </div>
-                <div class="terminal-output" id="terminalOutput"></div>
+            <div class="terminal-toolbar">
                 <div class="terminal-input-line">
                     <span class="terminal-prompt">&gt;</span>
                     <input type="text" class="terminal-input" id="terminalInput" autocomplete="off" spellcheck="false" />
                 </div>
+                <button class="btn-terminal-clear" id="terminalClear">Clear</button>
+                <button class="btn-terminal-save" id="terminalSave">Save Log</button>
+                <span class="terminal-buffer-info" id="terminalBufferInfo"></span>
             </div>
+            <div class="terminal-output" id="terminalOutput"></div>
         `;
 
         this.outputElement = this.container.querySelector('#terminalOutput');
