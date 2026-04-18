@@ -71,7 +71,7 @@ Open `http://localhost:8000` in Chrome or Edge.
 2. Click **Connect RTT** to establish RTT connection
 3. Use the terminal to send commands and view output
 4. Click **Disconnect RTT** to close the connection
-5. Note: RTT connection is automatically disconnected during Flash/Recover operations and reconnected after completion
+5. Note: RTT connection is automatically disconnected during Flash/Recover operations; reconnect it manually after completion
 
 ## Supported Browsers
 
