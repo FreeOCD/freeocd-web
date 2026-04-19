@@ -1,0 +1,22 @@
+{
+  "description": "Known CMSIS-DAP probe vendor IDs used to narrow the WebUSB chooser dialog (UX hint only). The authoritative CMSIS-DAP identification is performed by checking the USB Product String in webusb-transport.js.",
+  "vendorIds": [
+    { "vid": "0x03EB", "$comment": "Microchip (Atmel) — EDBG (Xplained Pro) / JTAG-ICE 3 / Atmel-ICE / Power Debugger / Arduino Zero EDBG / EDBG w/ Mass Storage / Commercial EDBG / Kraken / nEDBG (Curiosity Nano) / MPLAB PICkit 4 CMSIS-DAP" },
+    { "vid": "0x0403", "$comment": "FTDI / Sipeed — RV-Debugger Lite (FT2232-class chip repurposed for JTAG/CMSIS-DAP)" },
+    { "vid": "0x0416", "$comment": "Nuvoton — Nu-Link2-ME ICE/MSC/VCOM / Nu-Link2-Pro ICE/MSC/VCOM / Nu-Link2 HID FW UPGRADE" },
+    { "vid": "0x045B", "$comment": "Renesas — RA CMSIS-DAP Port (v1.0.0 HID, v2.0.0 WinUSB)" },
+    { "vid": "0x0483", "$comment": "STMicroelectronics — ST-Link v2 / ST-Link on Nucleo / STM32F103C8T6 DAP_SWO / STLINK-V3MINI (DAPv1+VCP, DAPv2+VCP, DAPv2, v1+v2)" },
+    { "vid": "0x04B4", "$comment": "Infineon (Cypress) — KitProg3 (HID mode / BULK mode)" },
+    { "vid": "0x0D28", "$comment": "ARM / mbed — DAPLink / MBED CMSIS-DAP (default VID shared by many third-party clones, MuseLab probes and BBC micro:bit)" },
+    { "vid": "0x1209", "$comment": "pid.codes (Community) — Rusty Probe / HS-Probe (open-source hardware shared VID)" },
+    { "vid": "0x1A86", "$comment": "WCH (Nanjing Qinheng) — WCH-Link / WCH-LinkE" },
+    { "vid": "0x1F00", "$comment": "Maxim Integrated — MAX32625PICO CDC (native bootloader mode; transitions to 0x0D28:0x0204 once DAPLink firmware boots)" },
+    { "vid": "0x1FC9", "$comment": "NXP — LPCScrypt Target / ROM / LPC-Link2 / MCU-LINK" },
+    { "vid": "0x2341", "$comment": "Arduino — Nicla Sense ME onboard debugger" },
+    { "vid": "0x2886", "$comment": "SeeedStudio — XIAO MG24 / nRF54L15 XIAO / Seeeduino XIAO (DAPv2)" },
+    { "vid": "0x2A86", "$comment": "WCH (Nanjing Qinheng) — WCH-Link (non-standard/exotic VID, possibly counterfeit or misconfigured units)" },
+    { "vid": "0x2E8A", "$comment": "Raspberry Pi — Debug Probe (RP2040-based, UART bridge + CMSIS-DAP composite)" },
+    { "vid": "0x4348", "$comment": "WCH (Nanjing Qinheng) — WCH-LinkE Recovery / ISP mode (exposed when firmware is bricked)" },
+    { "vid": "0xC251", "$comment": "Keil Software / ARM — LPC-Link-II CMSIS-DAP / OPEN-SDA CMSIS-DAP / Keil ULINK2 CMSIS-DAP / Keil ULINKplus CMSIS-DAP" }
+  ]
+}

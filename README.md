@@ -94,11 +94,13 @@ Safari and Firefox do not support WebUSB.
 
 ## Adding a New Target
 
-1. Create a JSON definition file in `public/targets/<platform>/<family>/<mcu>.json`
-2. Add an entry to `public/targets/index.json`
-3. If the platform is new, create a handler class in `public/js/platform/` and register it in `target-manager.js`
+1. Create a JSON definition file in `public/targets/<platform>/<family>/<mcu>.json` (include `id`, `name`, `platform`, `capabilities`, `description`, etc. — see [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-target-mcu) for the full schema).
+2. Append the new target's ID string to the `targets` array in `public/targets/index.json`.
+3. If the platform is new, create a handler class in `public/js/platform/` and register it in `target-manager.js`.
 
 See `public/targets/nordic/nrf54/nrf54l15.json` for an example target definition.
+
+CMSIS-DAP probe USB filters are managed centrally in `public/targets/probe-filters.json` rather than per-target. See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-cmsis-dap-probe-vendor-id) for the probe vendor ID workflow.
 
 ## Documentation
 
@@ -137,6 +139,7 @@ The application follows a layered architecture with clear separation of concerns
 │  (core/)                                                     │
 │  - hex-parser.js: Intel HEX parsing                         │
 │  - dap-operations.js: Low-level DAP transfer operations      │
+│  - probe-filters.js: CMSIS-DAP probe VID list loader        │
 │  - rtt-handler.js: SEGGER RTT protocol implementation        │
 │  - terminal.js: Terminal UI component                       │
 │  - state-manager.js: Connection state monitoring            │
@@ -166,6 +169,7 @@ The application follows a layered architecture with clear separation of concerns
 **Core Layer**
 - `hex-parser.js`: Parses Intel HEX files into binary data
 - `dap-operations.js`: Raw DAP_TRANSFER operations bypassing DAP.js bugs
+- `probe-filters.js`: Loads the central CMSIS-DAP probe vendor ID list
 - `rtt-handler.js`: Implements SEGGER RTT for bidirectional communication
 - `terminal.js`: Simple terminal UI without external dependencies
 - `state-manager.js`: Monitors device/RTT connection state with polling
@@ -186,30 +190,45 @@ Target definitions are JSON files in `public/targets/<platform>/<family>/<mcu>.j
 
 ```json
 {
+  "id": "nordic/nrf54/nrf54l15",
   "name": "nRF54L15",
-  "description": "Nordic nRF54L15",
   "platform": "nordic",
-  "usbFilters": [{"vendorId": "0x1915"}],
+  "cpu": "cortex-m33",
+  "cputapid": "0x6ba02477",
   "ctrlAp": {
     "num": 2,
-    "idr": "0x288e0181"
+    "idr": "0x32880000"
   },
   "eraseAllStatus": {
-    "busy": 2,
+    "ready": 0,
     "readyToReset": 1,
-    "error": 0
+    "busy": 2,
+    "error": 3
   },
   "flashController": {
     "type": "rramc",
-    "base": "0x41080000",
+    "base": "0x5004B000",
     "registers": {
-      "config": {"offset": "0x504", "enableValue": "0x1"},
-      "ready": {"offset": "0x400"}
+      "config": { "offset": "0x500", "enableValue": "0x101" },
+      "ready": { "offset": "0x400" },
+      "readyNext": { "offset": "0x404" }
     }
   },
-  "capabilities": ["flash", "recover"]
+  "flash": {
+    "address": "0x00000000",
+    "size": "0x0017D000"
+  },
+  "sram": {
+    "address": "0x20000000",
+    "workAreaSize": "0x4000"
+  },
+  "capabilities": ["recover", "flash", "verify", "rtt"],
+  "description": "Nordic nRF54L15 (Cortex-M33, RRAMC)"
 }
 ```
+
+> Probe USB vendor IDs are maintained in `public/targets/probe-filters.json`, not in per-target JSON files.
+
 
 ### Operation Flow
 
@@ -245,14 +264,17 @@ public/                         # Deployable static site
 ├── css/style.css               # Styles
 ├── js/
 │   ├── main.js                 # Application entry point
-│   ├── core/                   # HEX parser, low-level DAP operations
+│   ├── core/                   # HEX parser, DAP ops, probe filter loader,
+│   │                           #   RTT handler, state manager, terminal UI
 │   ├── transport/              # Transport abstraction (WebUSB, future: WebSerial)
 │   └── platform/               # Platform handlers (Nordic, future: STM32, RP2040)
 ├── targets/                    # JSON target definitions
+│   ├── index.json              # List of available target IDs
+│   ├── probe-filters.json      # Central CMSIS-DAP probe vendor ID list
 │   └── nordic/nrf54/           # Nordic nRF54 series
 └── lib/                        # Built dependencies (gitignored)
 scripts/                        # Development scripts
-└── validate-json.js            # Target JSON validator
+└── validate-json.js            # JSON validator for public/targets/
 vendor/dapjs/                   # DAP.js source (git submodule)
 AI_REVIEW.md                    # Code review checklist for AI/human reviewers
 ```
