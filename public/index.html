@@ -48,7 +48,7 @@
         </div>
 
         <!-- Flasher Section -->
-        <div class="section">
+        <div class="section" id="flasherSection">
             <h2 class="section-title">⚡ Flasher</h2>
             
             <div class="card">
@@ -79,12 +79,21 @@
                                 <button class="btn-flash" id="btnFlash" disabled>📤 Flash</button>
                                 <button class="btn-recover hidden" id="btnRecover" disabled>🔄 Recover</button>
                             </div>
-                            <div class="checkbox-group">
+                            <div class="checkbox-group" id="verifyRow">
                                 <input type="checkbox" id="verifyCheckbox" checked>
                                 <label for="verifyCheckbox">Verify after flashing</label>
                             </div>
+                            <div class="checkbox-group" id="skipProbeCheckRow">
+                                <input type="checkbox" id="skipProbeCheckCheckbox">
+                                <label for="skipProbeCheckCheckbox">Disable probe identification checks (use unknown probe)</label>
+                            </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Warning shown when probe identification checks are disabled -->
+                <div class="warning-box hidden" id="unknownProbeWarning">
+                    <p>⚠️ <strong>Probe identification checks are disabled.</strong> The WebUSB chooser will list every connected USB device (no VID filter), and the CMSIS-DAP USB Product String check will be skipped. Selecting a non-CMSIS-DAP device may cause connection errors or, in the worst case, damage your hardware. Only use this when you know your probe is CMSIS-DAP compatible but is not listed in <code>probe-filters.json</code>.</p>
                 </div>
 
                 <!-- Step preview (shown before execution) -->
@@ -101,7 +110,7 @@
         </div>
 
         <!-- Debugger Section -->
-        <div class="section">
+        <div class="section" id="rttSection">
             <h2 class="section-title">💻 Debugger (RTT)</h2>
             
             <div class="card" id="rttPanel">

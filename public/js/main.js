@@ -15,6 +15,7 @@ import { sleep } from './core/dap-operations.js';
 import { RTTHandler } from './core/rtt-handler.js';
 import { Terminal } from './core/terminal.js';
 import { StateManager } from './core/state-manager.js';
+import { loadProbeFilters } from './core/probe-filters.js';
 
 // =============================================================================
 // State
@@ -98,9 +99,15 @@ const dom = {
     targetSelect: document.getElementById('targetSelect'),
     hexFile: document.getElementById('hexFile'),
     verifyCheckbox: document.getElementById('verifyCheckbox'),
+    verifyRow: document.getElementById('verifyRow'),
+    skipProbeCheckCheckbox: document.getElementById('skipProbeCheckCheckbox'),
+    skipProbeCheckRow: document.getElementById('skipProbeCheckRow'),
+    unknownProbeWarning: document.getElementById('unknownProbeWarning'),
     autoScrollCheckbox: null,
     btnFlash: document.getElementById('btnFlash'),
     btnRecover: document.getElementById('btnRecover'),
+    flasherSection: document.getElementById('flasherSection'),
+    rttSection: document.getElementById('rttSection'),
     statusIndicator: document.getElementById('statusIndicator'),
     deviceStatus: document.getElementById('deviceStatus'),
     stepPreview: document.getElementById('stepPreview'),
@@ -265,11 +272,15 @@ function updateStatus(status, connected = false, busy = false, operationName = n
 
 function setButtonsEnabled(enabled) {
     const currentLock = operationLock.getCurrentLock();
-    
-    // Flash/Recover buttons: disabled if operation in progress or locked
-    dom.btnFlash.disabled = !enabled || currentLock === 'RTT';
-    dom.btnRecover.disabled = !enabled || currentLock === 'RTT';
-    
+    const hasTarget = dom.targetSelect.value !== '';
+    const hasFirmware = parsedFirmware !== null;
+
+    // Flash requires both a target and a firmware file.
+    dom.btnFlash.disabled = !enabled || !hasTarget || !hasFirmware || currentLock === 'RTT';
+    // Recover performs a mass erase and does not consume the firmware file, so
+    // it must stay available whenever a recover-capable target is selected.
+    dom.btnRecover.disabled = !enabled || !hasTarget || currentLock === 'RTT';
+
     // RTT button: disabled if Flash/Recover operation is in progress
     dom.rttConnectBtn.disabled = (currentLock === 'FLASH' || currentLock === 'RECOVER');
 }
@@ -278,18 +289,40 @@ function setButtonsEnabled(enabled) {
 // Step Preview (before execution)
 // =============================================================================
 
-function updateStepPreview() {
-    const capabilities = targetManager.getCapabilities();
-    const hasRecover = capabilities.includes('recover');
-    const hasFile = parsedFirmware !== null;
-    const verify = dom.verifyCheckbox.checked;
+// Toggle target-capability-dependent UI elements.
+//
+// The entire Flasher section, Recover button, Verify checkbox row, and the
+// entire RTT section are shown only when the currently loaded target declares
+// the matching capability. If no target is loaded, `getCapabilities()` returns
+// the default `['flash']` fallback, so the Flasher section stays visible (with
+// the Flash button kept disabled via setButtonsEnabled() until both a target
+// and a firmware file are selected) while the Recover button, Verify row, and
+// RTT section remain hidden.
+function applyCapabilityGates() {
+    const hasFlash = targetManager.hasCapability('flash');
+    const hasRecover = targetManager.hasCapability('recover');
+    const hasVerify = targetManager.hasCapability('verify');
+    const hasRtt = targetManager.hasCapability('rtt');
 
-    // Show/hide recover button
-    if (hasRecover) {
-        dom.btnRecover.classList.remove('hidden');
-    } else {
-        dom.btnRecover.classList.add('hidden');
+    // All four DOM references are looked up at import time; they may be null if
+    // the HTML is restructured, so guard each access consistently.
+    if (dom.flasherSection) {
+        dom.flasherSection.classList.toggle('hidden', !hasFlash);
     }
+    if (dom.btnRecover) {
+        dom.btnRecover.classList.toggle('hidden', !hasRecover);
+    }
+    if (dom.verifyRow) {
+        dom.verifyRow.classList.toggle('hidden', !hasVerify);
+    }
+    if (dom.rttSection) {
+        dom.rttSection.classList.toggle('hidden', !hasRtt);
+    }
+}
+
+function updateStepPreview() {
+    const hasFile = parsedFirmware !== null;
+    const verify = dom.verifyCheckbox.checked && targetManager.hasCapability('verify');
 
     // Build preview for Flash operation
     let steps;
@@ -471,7 +504,7 @@ async function connectRtt() {
         updateStatus('Selecting device for RTT...', false, true, 'Connecting RTT');
 
         transport = new WebUSBTransport();
-        await transport.selectDevice(targetManager.getUsbFilters());
+        await transport.selectDevice(targetManager.getUsbFilters(), getSelectDeviceOptions());
 
         const deviceName = transport.getDeviceName();
         log(`Device selected: ${deviceName}`, 'success');
@@ -521,7 +554,8 @@ async function connectRtt() {
         // Start StateManager polling (1 second interval for state monitoring)
         stateManager.startPolling();
 
-        // Start RTT data polling (1ms interval for data transfer)
+        // Start RTT data polling using the user-configurable interval
+        // (`rttPollingInterval` above; default 10ms per the HTML input).
         startRttDataPolling();
 
         // Set RTT connected state in StateManager
@@ -992,7 +1026,7 @@ async function runFlash() {
     isOperationInProgress = true;
     setButtonsEnabled(false);
 
-    const verify = dom.verifyCheckbox.checked;
+    const verify = dom.verifyCheckbox.checked && targetManager.hasCapability('verify');
     const steps = verify ? [...FLASH_STEPS_VERIFY] : [...FLASH_STEPS_NO_VERIFY];
     initStepProgress(steps);
 
@@ -1007,7 +1041,7 @@ async function runFlash() {
 
         updateStatus('Selecting device...', false, true, 'Connecting');
         transport = new WebUSBTransport();
-        await transport.selectDevice(targetManager.getUsbFilters());
+        await transport.selectDevice(targetManager.getUsbFilters(), getSelectDeviceOptions());
 
         const deviceName = transport.getDeviceName();
         log(`Device selected: ${deviceName}`, 'success');
@@ -1143,7 +1177,7 @@ async function runRecover() {
 
         updateStatus('Selecting device...', false, true, 'Connecting');
         transport = new WebUSBTransport();
-        await transport.selectDevice(targetManager.getUsbFilters());
+        await transport.selectDevice(targetManager.getUsbFilters(), getSelectDeviceOptions());
 
         const deviceName = transport.getDeviceName();
         log(`Device selected: ${deviceName}`, 'success');
@@ -1258,26 +1292,43 @@ async function onTargetChange() {
     const targetId = dom.targetSelect.value;
     if (!targetId) {
         setButtonsEnabled(false);
-        dom.btnRecover.classList.add('hidden');
+        applyCapabilityGates();
         renderStepPreview(['Select a target to see steps']);
         return;
-    }
-
-    // Save last selected target to localStorage immediately on selection
-    try {
-        localStorage.setItem('freeocd_last_target', targetId);
-    } catch (error) {
-        console.warn('Failed to save last target:', error);
     }
 
     try {
         await targetManager.loadTarget(targetId);
         log(`Target loaded: ${targetManager.currentTarget.name}`, 'info');
+        // Persist the selection only after a successful load so we never stash
+        // a broken ID that would silently fail to restore on next reload.
+        try {
+            localStorage.setItem('freeocd_last_target', targetId);
+        } catch (error) {
+            console.warn('Failed to save last target:', error);
+        }
+        applyCapabilityGates();
         updateStepPreview();
-        dom.btnRecover.classList.remove('hidden');
-        setButtonsEnabled(parsedFirmware !== null);
+        // Recover only needs a target, so enable buttons whenever no operation
+        // is in progress; setButtonsEnabled() evaluates per-button prerequisites.
+        setButtonsEnabled(true);
     } catch (error) {
         log(`Failed to load target: ${error.message}`, 'error');
+        // Drop any stale target state so the capability gates, the platform
+        // handler, and the step preview do not keep reflecting the previously
+        // loaded target. Reset the <select> to the "no target" placeholder and
+        // clear the persisted last-target so the failing ID is not restored on
+        // next reload.
+        targetManager.clearCurrentTarget();
+        dom.targetSelect.value = '';
+        try {
+            localStorage.removeItem('freeocd_last_target');
+        } catch (storageError) {
+            console.warn('Failed to clear last target:', storageError);
+        }
+        applyCapabilityGates();
+        setButtonsEnabled(false);
+        renderStepPreview(['Select a target to see steps']);
     }
 }
 
@@ -1289,7 +1340,9 @@ function onFileChange(event) {
         dom.fileHash.textContent = '-';
         dom.fileSize.textContent = '-';
         updateStepPreview();
-        setButtonsEnabled(false);
+        // Flash is disabled internally via missing firmware, but Recover stays
+        // available when a recover-capable target is selected.
+        setButtonsEnabled(true);
         return;
     }
 
@@ -1316,7 +1369,9 @@ function onFileChange(event) {
             dom.fileName.textContent = '-';
             dom.fileHash.textContent = '-';
             dom.fileSize.textContent = '-';
-            setButtonsEnabled(false);
+            // Flash is disabled internally via missing firmware, but Recover stays
+            // available when a recover-capable target is selected.
+            setButtonsEnabled(true);
         }
     };
     reader.readAsText(file);
@@ -1329,6 +1384,38 @@ function onVerifyChange() {
         console.warn('Failed to save verify setting:', error);
     }
     updateStepPreview();
+}
+
+// Toggle the "probe identification checks disabled" warning box shown above
+// the Steps preview. The warning is only relevant when the skip-probe-check
+// checkbox is enabled; otherwise it stays hidden.
+function updateUnknownProbeWarning() {
+    if (!dom.unknownProbeWarning || !dom.skipProbeCheckCheckbox) return;
+    const enabled = dom.skipProbeCheckCheckbox.checked;
+    dom.unknownProbeWarning.classList.toggle('hidden', !enabled);
+}
+
+function onSkipProbeCheckChange() {
+    try {
+        localStorage.setItem(
+            'freeocd_skip_probe_check',
+            dom.skipProbeCheckCheckbox.checked
+        );
+    } catch (error) {
+        console.warn('Failed to save skip probe check setting:', error);
+    }
+    updateUnknownProbeWarning();
+}
+
+// Build the options object forwarded to `transport.selectDevice()`. Kept in
+// one place so every call site (Flash / Recover / RTT) consistently honors
+// the skip-probe-check checkbox.
+function getSelectDeviceOptions() {
+    return {
+        skipProbeCheck: dom.skipProbeCheckCheckbox
+            ? dom.skipProbeCheckCheckbox.checked
+            : false
+    };
 }
 
 // =============================================================================
@@ -1351,6 +1438,19 @@ async function init() {
     } catch (error) {
         console.warn('Failed to restore verify setting:', error);
     }
+
+    // Restore skip-probe-check checkbox state. This setting is persisted so
+    // advanced users working with a non-listed probe do not have to re-enable
+    // it on every page load.
+    try {
+        const skipProbeCheckState = localStorage.getItem('freeocd_skip_probe_check');
+        if (skipProbeCheckState !== null) {
+            dom.skipProbeCheckCheckbox.checked = skipProbeCheckState === 'true';
+        }
+    } catch (error) {
+        console.warn('Failed to restore skip probe check setting:', error);
+    }
+    updateUnknownProbeWarning();
 
     // Restore autoScroll checkbox state
     try {
@@ -1377,6 +1477,7 @@ async function init() {
     dom.targetSelect.addEventListener('change', onTargetChange);
     dom.hexFile.addEventListener('change', onFileChange);
     dom.verifyCheckbox.addEventListener('change', onVerifyChange);
+    dom.skipProbeCheckCheckbox.addEventListener('change', onSkipProbeCheckChange);
     dom.autoScrollCheckbox.addEventListener('change', () => {
         try {
             localStorage.setItem('freeocd_autoscroll', dom.autoScrollCheckbox.checked);
@@ -1613,9 +1714,22 @@ async function init() {
 
     log('WebUSB is supported. Ready to connect.', 'success');
 
+    // Load the central CMSIS-DAP probe filter list. Probe vendor IDs are
+    // orthogonal to the target MCU and are managed in
+    // public/targets/probe-filters.json so that the whole targets/ tree can be
+    // shared verbatim with sister projects (e.g. freeocd-vscode-extension).
+    const probeFilters = await loadProbeFilters('./targets');
+    targetManager.setProbeFilters(probeFilters);
+    if (probeFilters.length === 0) {
+        log('No probe filters loaded; WebUSB chooser will show all devices.', 'info');
+    } else {
+        const ids = probeFilters.map(f => '0x' + f.vendorId.toString(16).toUpperCase().padStart(4, '0')).join(', ');
+        log(`Probe filters loaded: ${ids}`, 'info');
+    }
+
     // Load target index
     try {
-        const targets = await targetManager.loadTargetIndex();
+        const { targets, failedIds } = await targetManager.loadTargetIndex();
         dom.targetSelect.innerHTML = '<option value="">-- Select Target MCU --</option>';
         for (const target of targets) {
             const option = document.createElement('option');
@@ -1626,6 +1740,13 @@ async function init() {
         dom.targetSelect.disabled = false;
         dom.hexFile.disabled = false;
         log(`Loaded ${targets.length} target(s)`, 'info');
+        if (failedIds.length > 0) {
+            log(
+                `Skipped ${failedIds.length} target(s) that failed to load: ${failedIds.join(', ')}. ` +
+                `See browser console for details.`,
+                'warning'
+            );
+        }
 
         // Restore last selected target from localStorage
         try {
@@ -1634,11 +1755,14 @@ async function init() {
                 dom.targetSelect.value = lastTargetId;
                 await onTargetChange();
             } else {
-                // No target restored, show initial message
+                // No target restored, show initial message and hide
+                // capability-gated UI until the user picks a target.
+                applyCapabilityGates();
                 renderStepPreview(['Select a target to see steps']);
             }
         } catch (error) {
             console.warn('Failed to restore last target:', error);
+            applyCapabilityGates();
             renderStepPreview(['Select a target to see steps']);
         }
     } catch (error) {

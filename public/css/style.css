@@ -362,8 +362,9 @@ button:disabled {
     transform: translateY(-2px);
 }
 
-.btn-recover.hidden {
-    display: none;
+/* Generic utility to hide any element based on target capabilities. */
+.hidden {
+    display: none !important;
 }
 
 .btn-rtt {
