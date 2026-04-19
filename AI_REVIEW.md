@@ -17,15 +17,20 @@ Each item has a unique ID for issue/PR cross-referencing.
 - **Browsers**: Chromium-only (Chrome, Edge) — WebUSB required
 - **License**: BSD-3-Clause (FreeOCD), MIT (DAP.js)
 - **Source modules** (all in `public/js/`):
-  - `main.js` — Entry point, UI orchestration, operation runners (flash/recover)
+  - `main.js` — Entry point, UI orchestration, operation runners (flash/recover), RTT / advanced-debug handlers
   - `core/hex-parser.js` — Intel HEX format parser (user file input)
   - `core/dap-operations.js` — Raw CMSIS-DAP transfer operations, register read/write
+  - `core/probe-filters.js` — Loader for the central CMSIS-DAP probe vendor ID list
+  - `core/rtt-handler.js` — SEGGER RTT control-block scan + up/down buffer I/O
+  - `core/state-manager.js` — Polling-based device/RTT connection state machine with event listeners
+  - `core/terminal.js` — Minimal terminal UI for RTT (no external dependencies)
   - `transport/transport-interface.js` — Abstract transport interface
   - `transport/webusb-transport.js` — WebUSB transport implementation
   - `platform/platform-handler.js` — Abstract platform handler base class
   - `platform/nordic-handler.js` — Nordic CTRL-AP recovery, RRAMC/NVMC flash, verify
   - `platform/target-manager.js` — Target index/config loading, handler instantiation
 - **Target definitions**: `public/targets/index.json` + `public/targets/<platform>/<family>/<mcu>.json`
+- **Probe filter list**: `public/targets/probe-filters.json` (central CMSIS-DAP VID whitelist, orthogonal to target MCUs)
 - **External dependency**: `vendor/dapjs/` git submodule → built to `public/lib/dap.umd.js` (gitignored)
 
 ### Architecture Diagram
@@ -40,6 +45,10 @@ graph TD
     subgraph Core
         HEX[hex-parser.js<br/>Intel HEX parsing]
         DAP[dap-operations.js<br/>Raw DAP transfers]
+        PF[probe-filters.js<br/>Probe VID loader]
+        RTT[rtt-handler.js<br/>SEGGER RTT protocol]
+        SM[state-manager.js<br/>Connection state polling]
+        TERM[terminal.js<br/>Terminal UI]
     end
 
     subgraph Transport
@@ -56,6 +65,7 @@ graph TD
     subgraph External
         DAPJS[dap.umd.js<br/>DAP.js UMD global]
         TARGETS[targets/*.json<br/>MCU definitions]
+        PROBES[probe-filters.json<br/>CMSIS-DAP VID list]
         DEVICE[USB Debug Probe<br/>CMSIS-DAP]
     end
 
@@ -63,9 +73,16 @@ graph TD
     MAIN --> HEX
     MAIN --> TM
     MAIN --> WEBUSB
+    MAIN --> PF
+    MAIN --> RTT
+    MAIN --> SM
+    MAIN --> TERM
     TM --> NORDIC
     TM --> TARGETS
+    PF --> PROBES
     NORDIC --> DAP
+    RTT --> DAPJS
+    SM --> DAPJS
     WEBUSB --> DAPJS
     DAP --> DAPJS
     DAPJS --> DEVICE
@@ -145,7 +162,7 @@ Copy the tables into a GitHub Issue or PR comment. Fill the **Status** column:
 | SEC-01 | Critical | HEX file input validation | `parseIntelHex()` validates checksums, record types, and data lengths. Malformed HEX files must not crash the app or produce corrupt firmware. Empty files, binary garbage, and extremely large files handled gracefully. | `hex-parser.js` | 🤖 Review parser for unchecked array access, integer overflow, missing bounds checks on `byteCount` and address calculations | |
 | SEC-02 | High | JSON parse safety | All `JSON.parse()` and `fetch().json()` calls for target configs wrapped in try/catch. Malformed target JSON must not crash the application. | `target-manager.js`, `main.js` | 🤖 Grep for `JSON.parse` and `.json()` and verify each is inside try/catch | |
 | SEC-03 | High | DOM injection prevention | User-controlled data (device name, file name, error messages) inserted via `textContent`, never `innerHTML`. Log output uses `createElement` + `textContent`. Step progress uses `innerHTML` but only with internally-generated step names. | `main.js` | 🤖 Grep for `innerHTML` assignments; verify no user/device data flows into `innerHTML` | |
-| SEC-04 | High | WebUSB filter validation | USB vendor ID filters from target JSON validated before passing to `navigator.usb.requestDevice()`. Invalid or missing filters must not cause undefined behavior. | `webusb-transport.js`, target JSON files | 🤖 Verify `parseInt()` result checked for `NaN`; verify filter array is non-empty | |
+| SEC-04 | High | WebUSB filter validation | USB vendor ID filters from `public/targets/probe-filters.json` validated before passing to `navigator.usb.requestDevice()`. Invalid or missing filters must not cause undefined behavior. When `skipProbeCheck` is enabled, the filter list is intentionally bypassed and the warning banner is shown. | `core/probe-filters.js`, `transport/webusb-transport.js`, `public/targets/probe-filters.json` | 🤖 Verify `parseInt()` result checked for `NaN`; verify invalid entries are skipped with a `console.warn`; verify Product String check is performed unless `skipProbeCheck` is set | |
 | SEC-05 | Medium | Address range validation | Flash `startAddress` and firmware `size` from HEX parsing validated against target's flash memory region (`flash.address`, `flash.size`). Writes outside flash region could damage the device. | `main.js`, `nordic-handler.js` | Review whether firmware address is bounds-checked against target flash region before write | |
 | SEC-06 | Medium | Integer overflow in address math | Extended address calculations in HEX parser use bitwise shifts (`<< 4`, `<< 16`). Values must stay within safe integer range. DAP register address arithmetic must not wrap. | `hex-parser.js`, `dap-operations.js` | 🤖 Review shift operations for potential 32-bit overflow; verify no negative results | |
 | SEC-07 | Medium | No external network requests | Application must not make network requests to external servers. Only `fetch()` calls should be to local `targets/*.json` files. | All `public/js/` files | 🤖 Grep for `fetch`, `XMLHttpRequest`, `WebSocket`; verify all URLs are relative paths | |
@@ -213,8 +230,8 @@ Copy the tables into a GitHub Issue or PR comment. Fill the **Status** column:
 | RDO-03 | Low | Naming conventions | camelCase: variables/functions. PascalCase: classes. UPPER_SNAKE_CASE: constants. `_` prefix: private methods. | All `public/js/` files | 🤖 Run ESLint; spot-check naming | |
 | RDO-04 | Low | Constants centralization | DAP register constants in `dap-operations.js`. CTRL-AP offsets in `nordic-handler.js`. No magic numbers in business logic. | `dap-operations.js`, `nordic-handler.js` | 🤖 Grep for hex/numeric literals not declared as named constants | |
 | RDO-05 | Low | JSDoc comments | All exported functions and classes have JSDoc-style comments with `@param` and `@returns`. | All `public/js/` files | 🤖 Grep for exported functions without comments | |
-| RDO-06 | Low | ESLint clean | `npm run lint` passes with zero errors. Warnings are intentional (unused abstract method params). | All `public/js/` files | Run `npm run lint` | |
-| RDO-07 | Low | Module size | Flag modules exceeding ~500 lines for potential splitting. `nordic-handler.js` (511 lines) is at the boundary. | `public/js/` directory | 🤖 Count lines per module | |
+| RDO-06 | Low | ESLint clean | `npm run lint` passes with zero errors and zero warnings. Abstract method parameters and silent catch bindings follow the `_` prefix convention recognized by ESLint's `argsIgnorePattern` / `caughtErrorsIgnorePattern`. | All `public/js/` files | Run `npm run lint` | |
+| RDO-07 | Low | Module size | Flag modules exceeding ~500 lines for potential splitting. `main.js` (~1770 lines) hosts UI orchestration, flash/recover runners, RTT, and advanced-debug handlers and is a candidate for future decomposition; `nordic-handler.js` (~550 lines) is also at the boundary. | `public/js/` directory | 🤖 Count lines per module | |
 
 ## 7. Documentation Currency (DOC)
 
@@ -245,10 +262,10 @@ Copy the tables into a GitHub Issue or PR comment. Fill the **Status** column:
 | CIC-02 | High | Release pipeline stages | Lint → Build → Publish pipeline. Each stage gates the next via `needs`. | `release.yml` | 🤖 Verify `needs` dependency chain | |
 | CIC-03 | Medium | Build artifact verification | Built `dap.umd.js` verified for minimum file size (not suspiciously small). | `ci.yml`, `release.yml` | 🤖 Verify `stat -c%s` check with threshold | |
 | CIC-04 | Medium | Concurrency control | CI uses `cancel-in-progress: true`. Release uses `cancel-in-progress: false`. | `ci.yml`, `release.yml` | 🤖 Verify `concurrency` blocks | |
-| CIC-05 | Medium | Matrix builds | DAP.js build verified on Node.js 20 and 22. | `ci.yml` | 🤖 Verify matrix definition | |
+| CIC-05 | Medium | Matrix builds | DAP.js build verified on Node.js 22 and 24 in CI. Release workflow builds on Node.js 20 (minimum supported version documented in README). | `ci.yml`, `release.yml` | 🤖 Verify matrix definition covers the CI compat versions; verify release Node version matches the README "Prerequisites" section | |
 | CIC-06 | Medium | Lint coverage | ESLint (JS), HTMLHint (HTML), JSON validation (target files) all run in CI. | `ci.yml`, `release.yml` | 🤖 Verify all three lint steps exist | |
 | CIC-07 | Low | SHA256 checksums | Release archive accompanied by `checksums-sha256.txt`. | `release.yml` | 🤖 Verify `sha256sum` step exists | |
-| CIC-08 | Low | Node version alignment | CI and release use consistent Node versions. | `ci.yml`, `release.yml` | 🤖 Compare Node versions across workflows | |
+| CIC-08 | Low | Node version policy | Node versions follow a documented split: CI matrix runs forward-compat testing on recent LTS versions (currently 22, 24), while `release.yml` uses the minimum supported version (currently 20) declared in README. The artifact upload in CI must select one matrix leg to avoid duplicate-name collisions. | `ci.yml`, `release.yml`, `README.md` | 🤖 Verify the CI matrix and release Node version are both listed; verify the upload-artifact step's `if:` condition matches one entry in the CI matrix | |
 | CIC-09 | Medium | GITHUB_STEP_SUMMARY | Lint results and build artifacts summarized in workflow summary. | `ci.yml`, `release.yml` | 🤖 Verify `GITHUB_STEP_SUMMARY` usage | |
 
 ## 10. Dependency Management (DEP)
@@ -345,3 +362,4 @@ Copy the tables into a GitHub Issue or PR comment. Fill the **Status** column:
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-04-18 | 1.0 | Initial checklist: 15 categories, 95 items |
+| 2026-04-19 | 1.1 | v0.0.2 docs refresh: added `probe-filters.js`, `rtt-handler.js`, `state-manager.js`, `terminal.js` to the source module list and architecture diagram; updated SEC-04 to reference `probe-filters.json`; corrected CIC-05/CIC-08 Node.js matrix versions and RDO-07 line-count figures; tightened RDO-06 to the new zero-warnings ESLint baseline |
