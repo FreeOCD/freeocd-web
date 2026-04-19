@@ -111,7 +111,10 @@ jobs:
           done
 
       - name: Upload build artifact
-        if: matrix.node-version == 20
+        # Upload from a single matrix leg to avoid duplicate-name conflicts.
+        # Pick the lowest Node version in the matrix so the artifact reflects
+        # the most conservative supported build environment.
+        if: matrix.node-version == 22
         uses: actions/upload-artifact@v4
         with:
           name: freeocd-web-public
