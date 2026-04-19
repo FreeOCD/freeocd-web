@@ -15,11 +15,17 @@ export class TransportInterface {
 
     /**
      * Prompt user to select a device and return the underlying transport object
-     * @param {Array} usbFilters - Array of USB filter objects (e.g., [{vendorId: 0x2886}])
+     * @param {Array} _usbFilters - Array of USB filter objects (e.g., [{vendorId: 0x2886}])
+     * @param {object} [_options] - Optional selection options
+     * @param {boolean} [_options.skipProbeCheck=false] - If true, bypass the
+     *   `_usbFilters` VID whitelist and any transport-specific probe
+     *   identification (e.g. the CMSIS-DAP USB Product String check) so the
+     *   user can pick an unknown/custom probe. See the concrete transport
+     *   implementation for the exact semantics.
      * @returns {Promise<object>} The transport object usable by DAPjs.ADI
      * @throws {Error} If device selection fails
      */
-    async selectDevice(usbFilters) {
+    async selectDevice(_usbFilters, _options) {
         throw new Error('selectDevice() must be implemented');
     }
 

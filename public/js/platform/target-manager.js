@@ -15,13 +15,38 @@ export class TargetManager {
         this.targets = [];
         this.currentTarget = null;
         this.currentHandler = null;
+        this.probeFilters = [];
+        // Full target JSON cache populated by loadTargetIndex() so that
+        // loadTarget(id) does not need to re-fetch the same file.
+        this._targetDefCache = new Map();
     }
 
     /**
-     * Load the target index from the server
+     * Set the CMSIS-DAP probe USB filter list. Typically loaded once at
+     * application bootstrap from `public/targets/probe-filters.json` via
+     * `loadProbeFilters()`.
+     * @param {Array<{vendorId: number}>} filters - Probe filter objects
+     */
+    setProbeFilters(filters) {
+        this.probeFilters = Array.isArray(filters) ? filters : [];
+    }
+
+    /**
+     * Load the target index from the server.
+     *
+     * `index.json` is a flat list of target IDs (e.g.
+     * `{"targets": ["nordic/nrf54/nrf54l15"]}`). Each referenced target JSON is
+     * fetched in parallel to pull its display metadata (name, platform,
+     * description, capabilities) and cached for reuse by loadTarget(). Targets
+     * that fail to load are skipped (with a console warning) so a single bad
+     * file does not break the whole selector; duplicate IDs are deduplicated.
+     *
      * @param {string} basePath - Base path to the targets directory (e.g., 'targets')
-     * @returns {Promise<Array>} Array of target objects
-     * @throws {Error} If loading fails
+     * @returns {Promise<{targets: Array, failedIds: Array<string>}>} The loaded
+     *   target metadata list plus the IDs that failed to load. Callers can use
+     *   `failedIds` to surface a user-visible warning when some targets were
+     *   skipped.
+     * @throws {Error} If the index itself cannot be loaded
      */
     async loadTargetIndex(basePath = 'targets') {
         const response = await fetch(`${basePath}/index.json`);
@@ -29,24 +54,100 @@ export class TargetManager {
             throw new Error(`Failed to load target index: ${response.status}`);
         }
         const index = await response.json();
-        this.targets = index.targets;
-        return this.targets;
+        const rawIds = Array.isArray(index.targets) ? index.targets : [];
+
+        // Deduplicate IDs while preserving order, and drop empty/non-string entries.
+        const seen = new Set();
+        const ids = [];
+        for (const id of rawIds) {
+            if (typeof id !== 'string' || id.length === 0) {
+                console.warn('Skipping invalid entry in targets/index.json:', id);
+                continue;
+            }
+            if (seen.has(id)) {
+                console.warn(`Skipping duplicate target ID in targets/index.json: "${id}"`);
+                continue;
+            }
+            seen.add(id);
+            ids.push(id);
+        }
+
+        // Reset the full-def cache so stale entries from a previous load do not leak.
+        this._targetDefCache.clear();
+
+        const failedIds = [];
+        const entries = await Promise.all(ids.map(async (id) => {
+            try {
+                const res = await fetch(`${basePath}/${id}.json`);
+                if (!res.ok) {
+                    console.warn(
+                        `Failed to load target "${id}" (${basePath}/${id}.json): HTTP ${res.status}`
+                    );
+                    failedIds.push(id);
+                    return null;
+                }
+                const def = await res.json();
+                // Cache the full definition so loadTarget(id) is a no-op fetch.
+                this._targetDefCache.set(id, def);
+                return {
+                    id,
+                    name: typeof def.name === 'string' ? def.name : id,
+                    platform: def.platform,
+                    description: typeof def.description === 'string' ? def.description : '',
+                    capabilities: Array.isArray(def.capabilities) ? def.capabilities : []
+                };
+            } catch (err) {
+                console.warn(
+                    `Failed to load target "${id}" (${basePath}/${id}.json):`,
+                    err
+                );
+                failedIds.push(id);
+                return null;
+            }
+        }));
+
+        this.targets = entries.filter((e) => e !== null);
+        return { targets: this.targets, failedIds };
     }
 
     /**
-     * Load a specific target configuration by ID
+     * Load a specific target configuration by ID.
+     *
+     * If `loadTargetIndex()` already fetched this ID, the cached full JSON is
+     * reused (no extra HTTP request); otherwise the file is fetched on demand.
+     *
      * @param {string} targetId - Target ID (e.g., 'nordic/nrf54/nrf54l15')
      * @param {string} basePath - Base path to the targets directory
      * @returns {Promise<object>} The target configuration object
      * @throws {Error} If loading fails
      */
     async loadTarget(targetId, basePath = 'targets') {
+        const cached = this._targetDefCache.get(targetId);
+        if (cached) {
+            this.currentTarget = cached;
+            return this.currentTarget;
+        }
         const response = await fetch(`${basePath}/${targetId}.json`);
         if (!response.ok) {
             throw new Error(`Failed to load target ${targetId}: ${response.status}`);
         }
-        this.currentTarget = await response.json();
+        const def = await response.json();
+        this._targetDefCache.set(targetId, def);
+        this.currentTarget = def;
         return this.currentTarget;
+    }
+
+    /**
+     * Clear the currently loaded target and its handler.
+     *
+     * Used by the UI when a target load fails so that `currentTarget` does not
+     * leak stale data from the previously selected target. After this call,
+     * `getCapabilities()` falls back to the default `['flash']` and
+     * `createHandler()` throws until another target is successfully loaded.
+     */
+    clearCurrentTarget() {
+        this.currentTarget = null;
+        this.currentHandler = null;
     }
 
     /**
@@ -72,14 +173,21 @@ export class TargetManager {
     }
 
     /**
-     * Get USB filters for the current target (for WebUSB device selection)
-     * @returns {Array} USB filter objects
+     * Get USB filters for WebUSB device selection.
+     *
+     * The filter list is managed centrally in `public/targets/probe-filters.json`
+     * (loaded at bootstrap via `setProbeFilters()`), because CMSIS-DAP probes
+     * are orthogonal to the target MCU. Target JSONs must not carry their own
+     * `usbFilters` field.
+     *
+     * A shallow copy of the internal array is returned so callers cannot mutate
+     * the probe filter list via `push`/`sort`/etc. The filter objects
+     * themselves are shared references, but they are treated as immutable by
+     * all call sites.
+     * @returns {Array<{vendorId: number}>} USB filter objects (fresh array)
      */
     getUsbFilters() {
-        if (!this.currentTarget || !this.currentTarget.usbFilters) {
-            return [];
-        }
-        return this.currentTarget.usbFilters;
+        return [...this.probeFilters];
     }
 
     /**

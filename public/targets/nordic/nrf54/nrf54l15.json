@@ -1,4 +1,5 @@
 {
+  "id": "nordic/nrf54/nrf54l15",
   "name": "nRF54L15",
   "platform": "nordic",
   "cpu": "cortex-m33",
@@ -30,9 +31,6 @@
     "address": "0x20000000",
     "workAreaSize": "0x4000"
   },
-  "usbFilters": [
-    { "vendorId": "0x2886" },
-    { "vendorId": "0x2e8a" }
-  ],
-  "capabilities": ["recover", "flash"]
+  "capabilities": ["recover", "flash", "verify", "rtt"],
+  "description": "Nordic nRF54L15 (Cortex-M33, RRAMC)"
 }
