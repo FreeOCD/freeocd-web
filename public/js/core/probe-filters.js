@@ -33,8 +33,9 @@ export async function loadProbeFilters(basePath = './targets') {
     try {
         response = await fetch(url);
     } catch (err) {
+        const reason = err && err.message ? err.message : String(err || 'unknown error');
         console.warn(
-            `probe-filters.json fetch failed (${url}): ${err.message}. ` +
+            `probe-filters.json fetch failed (${url}): ${reason}. ` +
                 'Falling back to no vendor filter.'
         );
         return [];
@@ -52,8 +53,9 @@ export async function loadProbeFilters(basePath = './targets') {
     try {
         data = await response.json();
     } catch (err) {
+        const reason = err && err.message ? err.message : String(err || 'unknown error');
         console.warn(
-            `probe-filters.json is not valid JSON: ${err.message}. ` +
+            `probe-filters.json is not valid JSON: ${reason}. ` +
                 'Falling back to no vendor filter.'
         );
         return [];
