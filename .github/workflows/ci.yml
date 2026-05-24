@@ -26,6 +26,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+          check-latest: true
 
       - name: Install dev dependencies
         run: npm ci
@@ -72,6 +73,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
+          check-latest: true
 
       - name: Cache dapjs node_modules
         uses: actions/cache@v5

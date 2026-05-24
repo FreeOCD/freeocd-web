@@ -25,6 +25,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+          check-latest: true
 
       - name: Install dev dependencies
         run: npm ci
@@ -53,6 +54,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+          check-latest: true
           cache: npm
           cache-dependency-path: vendor/dapjs/package-lock.json
 
