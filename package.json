@@ -9,9 +9,9 @@
     "lint:json": "node scripts/validate-json.js"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "eslint": "^9.0.0",
-    "globals": "^15.0.0",
-    "htmlhint": "^1.1.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.0",
+    "globals": "^17.6.0",
+    "htmlhint": "^1.9.2"
   }
 }

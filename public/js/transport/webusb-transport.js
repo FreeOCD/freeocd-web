@@ -64,7 +64,7 @@ export class WebUSBTransport extends TransportInterface {
             device = await navigator.usb.requestDevice({ filters });
         } catch (error) {
             if (error.name === 'NotFoundError') {
-                throw new Error('No device selected. Please select a CMSIS-DAP device.');
+                throw new Error('No device selected. Please select a CMSIS-DAP device.', { cause: error });
             }
             throw error;
         }

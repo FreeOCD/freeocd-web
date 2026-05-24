@@ -91,7 +91,7 @@ export class NordicHandler extends PlatformHandler {
                     throw new Error('Both mass erase and fallback erase failed');
                 }
             } catch (fallbackError) {
-                throw new Error(`Erase failed: ${fallbackError.message}`);
+                throw new Error(`Erase failed: ${fallbackError.message}`, { cause: fallbackError });
             }
         }
 

@@ -42,7 +42,7 @@ Visit [freeocd.org](https://freeocd.org) to use the WebDebugger directly in your
 - A CMSIS-DAP compatible debug probe
 
 **For Local Development:**
-- [Node.js](https://nodejs.org/) (v20+ recommended) — for building DAP.js
+- [Node.js](https://nodejs.org/) (v24 recommended; v20.19+ or v22.13+ minimum) — for linting and building DAP.js
 - Python 3 — for running local HTTP server
 
 ### Clone & Build
