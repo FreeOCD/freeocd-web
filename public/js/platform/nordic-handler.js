@@ -218,6 +218,21 @@ export class NordicHandler extends PlatformHandler {
             }
         }
 
+        // Flush the RRAMC write buffer. The nRF54L RRAM holds the most recently
+        // written word(s) in a small buffer and only commits them to non-volatile
+        // storage on a coherency event; a MEM-AP read of the RRAM forces that
+        // commit, whereas the register writes used to program it do not. Reading
+        // the final word back guarantees it is committed before the device is
+        // reset (without it the last word is silently lost when verify is skipped).
+        if (totalWords > 0) {
+            const flushAddr = startAddress + (totalWords - 1) * 4;
+            try {
+                await dap.readMem32(flushAddr);
+            } catch (flushError) {
+                this.log(`Flash flush read-back failed at 0x${flushAddr.toString(16)}: ${flushError.message}`, 'warning');
+            }
+        }
+
         this.log('Firmware write completed!', 'success');
     }
 
