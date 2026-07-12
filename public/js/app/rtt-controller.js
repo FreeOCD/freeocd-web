@@ -235,8 +235,12 @@ export function createRttController(ctx) {
 
         rttDataAbortController = new AbortController();
 
+        // Captured locally: stopRttDataPolling() nulls rttDataAbortController
+        // while the loop may still be awaiting.
+        const signal = rttDataAbortController.signal;
+
         async function pollLoop() {
-            while (!rttDataAbortController.signal.aborted) {
+            while (!signal.aborted) {
                 try {
                     if (rttHandler && stateManager.getState().isRttConnected) {
                         const data = await rttHandler.read(0);
@@ -253,7 +257,7 @@ export function createRttController(ctx) {
                         }
                     }
                 } catch (error) {
-                    if (!rttDataAbortController.signal.aborted) {
+                    if (!signal.aborted) {
                         log(`RTT data polling error: ${error.message}`, 'warning');
                     }
                 }

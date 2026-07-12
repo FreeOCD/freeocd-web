@@ -88,7 +88,7 @@ export function createFlashController(ctx) {
         initStepProgress(steps);
 
         const session = new ConnectionSession();
-        let dap = null;
+        let dap;
         let stepIdx = 0;
 
         // Small helper so step bookkeeping cannot drift between operations
@@ -112,7 +112,7 @@ export function createFlashController(ctx) {
             ctx.updateStatus(`Connected: ${deviceName}`, true, true, 'Mass Erasing');
 
             const handler = targetManager.createHandler(log);
-            dap = new DAPjs.ADI(session.getTransport());
+            dap = session.track(new DAPjs.ADI(session.getTransport()));
             await withTimeout(dap.connect(), DAP_CONNECT_TIMEOUT_MS, 'DAP connect');
             log('DAP connected', 'success');
             stepper.done();
@@ -133,8 +133,7 @@ export function createFlashController(ctx) {
             stepper.done();
 
             log('Disconnecting...', 'info');
-            await dap.disconnect();
-            dap = null;
+            await session.dispose();
             ctx.updateStatus('Operation completed', true, false);
             log(`=== ${title} Completed Successfully ===`, 'success');
 
@@ -147,10 +146,9 @@ export function createFlashController(ctx) {
             log(`Error: ${error.message}`, 'error');
             failStep(stepIdx);
             ctx.updateStatus('Operation failed', false, false);
-            if (dap) {
-                try { await dap.disconnect(); } catch (_) { /* ignore */ }
-            }
         } finally {
+            await session.dispose();
+
             ctx.setButtonsEnabled(true);
 
             operationLock.release(type);
@@ -185,9 +183,11 @@ export function createFlashController(ctx) {
                 // Step: Flash
                 stepper.begin();
                 log('Creating fresh DAP connection for flashing...', 'info');
+                const transport = session.getTransport();
                 await dap.disconnect();
+                session.untrack(dap);
                 await sleep(DAP_RECONNECT_DELAY_MS);
-                const flashDap = await handler.createFreshDap(session.getTransport());
+                const flashDap = session.track(await handler.createFreshDap(transport));
                 await sleep(DAP_RECONNECT_DELAY_MS);
 
                 await handler.flash(flashDap, parsedFirmware.data, parsedFirmware.startAddress,

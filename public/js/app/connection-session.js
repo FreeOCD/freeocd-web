@@ -61,18 +61,30 @@ export class ConnectionSession {
     }
 
     /**
+     * Stop tracking a DAP object that the caller has already disconnected,
+     * so dispose() does not disconnect it a second time
+     * @param {object} dapObject - Object previously passed to track()
+     */
+    untrack(dapObject) {
+        this._disconnectables = this._disconnectables.filter(o => o !== dapObject);
+    }
+
+    /**
      * Disconnect all tracked DAP objects (bounded by a timeout each) and drop
      * the transport. Safe to call multiple times; errors are swallowed because
      * dispose runs in cleanup paths where the device may already be gone.
      * @returns {Promise<void>}
      */
     async dispose() {
-        for (const obj of this._disconnectables.reverse()) {
+        // Detach the tracked list up front so a concurrent dispose() sees an
+        // empty session instead of iterating an array being mutated here.
+        const disconnectables = this._disconnectables;
+        this._disconnectables = [];
+        this._transport = null;
+        for (const obj of disconnectables.reverse()) {
             try {
                 await withTimeout(obj.disconnect(), DAP_DISCONNECT_TIMEOUT_MS, 'DAP disconnect');
             } catch (_) { /* ignore: device may already be gone */ }
         }
-        this._disconnectables = [];
-        this._transport = null;
     }
 }
