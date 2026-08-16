@@ -25,6 +25,7 @@ export class RTTHandler {
         this.scanBlockSize = options.scanBlockSize || 0x1000; // 4KB
         this.scanStride = options.scanStride || 0x0800; // 2KB
         this.rttSignature = "53454747455220525454"; // "SEGGER RTT"
+        this.maxBuffers = 16; // Sanity limit for control block buffer counts
 
         this.numBufUp = 0;
         this.numBufDown = 0;
@@ -48,9 +49,11 @@ export class RTTHandler {
             try {
                 const data32 = await this.processor.readBlock(this.scanStartAddress + offset, this.scanBlockSize / 4);
                 const data = new Uint8Array(data32.buffer);
-                const sigIndex = this.toHexString(data).indexOf(this.rttSignature) / 2;
-                if (sigIndex >= 0) {
-                    this.rttCtrlAddr = this.scanStartAddress + offset + sigIndex;
+                const hexIndex = this.toHexString(data).indexOf(this.rttSignature);
+                // Only accept matches on even hex-string indices, i.e. aligned
+                // to a byte boundary in the scanned memory.
+                if (hexIndex >= 0 && hexIndex % 2 === 0) {
+                    this.rttCtrlAddr = this.scanStartAddress + offset + hexIndex / 2;
                     console.log(`Found at 0x${this.rttCtrlAddr.toString(16)}`);
                     break;
                 }
@@ -72,6 +75,27 @@ export class RTTHandler {
         // Number of up- and down-buffers
         this.numBufUp = dv.getUint32(16, true);
         this.numBufDown = dv.getUint32(20, true);
+
+        // Sanity-check the control block metadata: unreasonable buffer counts
+        // mean the signature match was a false positive or the target memory
+        // is corrupt, and trusting them would make us read/write bogus
+        // addresses below.
+        if (this.numBufUp > this.maxBuffers || this.numBufDown > this.maxBuffers) {
+            console.warn(`RTT control block has implausible buffer counts (up=${this.numBufUp}, down=${this.numBufDown}); ignoring`);
+            this.rttCtrlAddr = null;
+            this.numBufUp = 0;
+            this.numBufDown = 0;
+            return -1;
+        }
+
+        const descriptorsEnd = 24 + (this.numBufUp + this.numBufDown) * 24;
+        if (descriptorsEnd > data.length) {
+            console.warn('RTT buffer descriptors extend beyond the scanned block; ignoring');
+            this.rttCtrlAddr = null;
+            this.numBufUp = 0;
+            this.numBufDown = 0;
+            return -1;
+        }
 
         console.log(`RTT: ${this.numBufUp} up buffers, ${this.numBufDown} down buffers`);
 
@@ -130,6 +154,12 @@ export class RTTHandler {
         buf.RdOff = await this.processor.readMem32(buf.bufAddr + 16);
         buf.WrOff = await this.processor.readMem32(buf.bufAddr + 12);
 
+        // Offsets are indices into the circular buffer; out-of-range values
+        // indicate a corrupt control block and would produce bogus reads.
+        if (buf.WrOff >= buf.SizeOfBuffer || buf.RdOff >= buf.SizeOfBuffer) {
+            throw new Error(`RTT up buffer ${bufId} has corrupt offsets (WrOff=${buf.WrOff}, RdOff=${buf.RdOff}, size=${buf.SizeOfBuffer})`);
+        }
+
         if (buf.WrOff > buf.RdOff) {
             const data = await this.processor.readBytes(buf.pBuffer + buf.RdOff, buf.WrOff - buf.RdOff);
             buf.RdOff = buf.WrOff;
@@ -168,6 +198,10 @@ export class RTTHandler {
 
         buf.RdOff = await this.processor.readMem32(buf.bufAddr + 16);
         buf.WrOff = await this.processor.readMem32(buf.bufAddr + 12);
+
+        if (buf.WrOff >= buf.SizeOfBuffer || buf.RdOff >= buf.SizeOfBuffer) {
+            throw new Error(`RTT down buffer ${bufId} has corrupt offsets (WrOff=${buf.WrOff}, RdOff=${buf.RdOff}, size=${buf.SizeOfBuffer})`);
+        }
 
         let num_avail;
         if (buf.WrOff >= buf.RdOff) {

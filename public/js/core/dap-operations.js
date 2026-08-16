@@ -12,6 +12,8 @@
 // Portions of this file are derived from xiao-nrf54l15-web-flasher
 // (BSD 3-Clause License, Copyright (c) 2026, Y.Yamashiro)
 
+import { sleep } from './async-utils.js';
+
 // DP Register constants (from DAP.js dap/enums.ts)
 export const DP_REG_SELECT = 0x8;  // AP Select register (write only)
 export const DP_REG_RDBUFF = 0xC;  // Read Buffer register (read only)
@@ -28,6 +30,11 @@ const BANK_SELECT_APBANKSEL = 0x000000F0;
 
 // CMSIS-DAP command constants
 const DAP_COMMAND_TRANSFER = 0x05;
+
+// Retry parameters for transient WAIT responses and transfer errors
+const TRANSFER_RETRY_DELAY_MS = 50;
+const WAIT_RETRY_COUNT = 3;
+const WAIT_RETRY_DELAY_MS = 10;
 
 // MEM-AP register offsets (only A[3:2] bits used in transfer)
 export const AP_CSW = 0x00;
@@ -91,6 +98,33 @@ export function getProxy(dap) {
     throw new Error('Could not find proxy object with transferBlock in ADI instance');
 }
 
+// Cache proxy lookups per ADI instance: the reflection scan over DAP.js
+// internals only needs to run once per instance.
+const transferProxyCache = new WeakMap();
+
+/**
+ * Get the underlying CmsisDAP proxy (with a transfer method) from an ADI
+ * instance, cached per instance
+ * @param {object} dap - DAPjs ADI instance
+ * @returns {object} Proxy object with transfer method
+ * @throws {Error} If proxy not found
+ */
+export function getTransferProxy(dap) {
+    const cached = transferProxyCache.get(dap);
+    if (cached) {
+        return cached;
+    }
+    const propNames = Object.getOwnPropertyNames(dap);
+    for (const name of propNames) {
+        const prop = dap[name];
+        if (prop && typeof prop === 'object' && typeof prop.transfer === 'function') {
+            transferProxyCache.set(dap, prop);
+            return prop;
+        }
+    }
+    throw new Error('Could not find proxy object in ADI instance');
+}
+
 /**
  * Raw DAP_TRANSFER write that bypasses DAP.js response parsing
  * Builds raw DAP_TRANSFER packets and only parses the 3-byte header
@@ -100,6 +134,22 @@ export function getProxy(dap) {
  * @throws {Error} If transfer fails or response is invalid
  */
 export async function rawDapTransferWrite(transport, operations) {
+    for (let attempt = 0; ; attempt++) {
+        try {
+            return await rawDapTransferWriteOnce(transport, operations);
+        } catch (error) {
+            // WAIT means the target needs more time; retry a bounded number
+            // of times before surfacing the error.
+            if (error.message === 'Transfer response WAIT' && attempt < WAIT_RETRY_COUNT) {
+                await sleep(WAIT_RETRY_DELAY_MS);
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
+async function rawDapTransferWriteOnce(transport, operations) {
     const packetSize = 3 + (operations.length * 5);
     const packet = new Uint8Array(packetSize);
     const view = new DataView(packet.buffer);
@@ -162,19 +212,7 @@ export async function readAPReg(dap, apNum, regOffset, retries = 3) {
 
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
-            let proxy = null;
-            const propNames = Object.getOwnPropertyNames(dap);
-            for (const name of propNames) {
-                const prop = dap[name];
-                if (prop && typeof prop === 'object' && typeof prop.transfer === 'function') {
-                    proxy = prop;
-                    break;
-                }
-            }
-
-            if (!proxy) {
-                throw new Error('Could not find proxy object in ADI instance');
-            }
+            const proxy = getTransferProxy(dap);
 
             await proxy.transfer([{
                 port: DAP_PORT_DEBUG,
@@ -199,10 +237,10 @@ export async function readAPReg(dap, apNum, regOffset, retries = 3) {
                 return result[0];
             }
 
-            await sleep(50);
+            await sleep(TRANSFER_RETRY_DELAY_MS);
         } catch (error) {
             if (attempt < retries - 1) {
-                await sleep(50);
+                await sleep(TRANSFER_RETRY_DELAY_MS);
             } else {
                 throw error;
             }
@@ -227,19 +265,7 @@ export async function writeAPReg(dap, apNum, regOffset, value, retries = 3) {
 
     for (let attempt = 0; attempt < retries; attempt++) {
         try {
-            let proxy = null;
-            const propNames = Object.getOwnPropertyNames(dap);
-            for (const name of propNames) {
-                const prop = dap[name];
-                if (prop && typeof prop === 'object' && typeof prop.transfer === 'function') {
-                    proxy = prop;
-                    break;
-                }
-            }
-
-            if (!proxy) {
-                throw new Error('Could not find proxy object in ADI instance');
-            }
+            const proxy = getTransferProxy(dap);
 
             await proxy.transfer([{
                 port: DAP_PORT_DEBUG,
@@ -258,7 +284,7 @@ export async function writeAPReg(dap, apNum, regOffset, value, retries = 3) {
             return;
         } catch (error) {
             if (attempt < retries - 1) {
-                await sleep(50);
+                await sleep(TRANSFER_RETRY_DELAY_MS);
             } else {
                 throw error;
             }
@@ -266,11 +292,6 @@ export async function writeAPReg(dap, apNum, regOffset, value, retries = 3) {
     }
 }
 
-/**
- * Sleep utility for async delays
- * @param {number} ms - Milliseconds to sleep
- * @returns {Promise<void>}
- */
-export function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+// Re-exported so existing importers keep working; the implementation lives
+// in async-utils.js alongside the other async helpers.
+export { sleep };

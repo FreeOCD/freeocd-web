@@ -1,6 +1,8 @@
 // StateManager - Centralized state management for RTT and device connections
 // Provides polling, event listeners, and automatic error handling
 
+import { STATE_POLLING_INTERVAL_MS } from './constants.js';
+
 /**
  * Centralized state management for RTT and device connections
  * Provides polling, event listeners, and automatic error handling
@@ -15,7 +17,7 @@ export class StateManager {
 
         // Polling control
         this._isPolling = false;
-        this._pollingInterval = 1000; // 1 second
+        this._pollingInterval = STATE_POLLING_INTERVAL_MS;
         this._abortController = null;
 
         // External operation flag to prevent polling interference
@@ -118,9 +120,12 @@ export class StateManager {
         }
     }
     
-    // Polling loop
+    // Polling loop. The abort signal is captured locally because
+    // stopPolling() nulls this._abortController while the loop may still be
+    // awaiting; a stale loop iteration must not dereference the cleared field.
     async _pollLoop() {
-        while (this._isPolling && !this._abortController.signal.aborted) {
+        const signal = this._abortController.signal;
+        while (this._isPolling && !signal.aborted) {
             // Skip polling during external operations (Flash/Recover)
             if (this._isExternalOperationInProgress) {
                 await new Promise(resolve => setTimeout(resolve, this._pollingInterval));
@@ -131,8 +136,8 @@ export class StateManager {
                 await this._checkDeviceState();
                 await this._checkRttState();
             } catch (error) {
-                if (!this._abortController.signal.aborted) {
-                    this._handleError(error);
+                if (!signal.aborted) {
+                    await this._handleError(error);
                 }
             }
             
@@ -160,7 +165,7 @@ export class StateManager {
         } catch (error) {
             // Device is not accessible
             if (this._isDeviceConnected) {
-                this._handleError(new Error(`Device connection lost: ${error.message}`));
+                await this._handleError(new Error(`Device connection lost: ${error.message}`));
                 this.setDeviceConnected(false);
             }
         }
@@ -182,17 +187,23 @@ export class StateManager {
         }
     }
     
-    // Handle errors
-    _handleError(error) {
+    // Handle errors. Cleanup is awaited so that the polling loop does not
+    // race ahead (and poll a dead connection again) while teardown is still
+    // in flight.
+    async _handleError(error) {
         this._emit('error', error);
-        
+
         if (this._onLog) {
             this._onLog(`State monitoring error: ${error.message}`, 'error');
         }
-        
+
         // If RTT was connected, trigger cleanup
         if (this._isRttConnected && this._onCleanup) {
-            this._onCleanup();
+            try {
+                await this._onCleanup();
+            } catch (cleanupError) {
+                console.error('Cleanup after state error failed:', cleanupError);
+            }
         }
     }
     

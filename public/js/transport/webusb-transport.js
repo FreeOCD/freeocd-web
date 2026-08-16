@@ -98,6 +98,15 @@ export class WebUSBTransport extends TransportInterface {
     }
 
     /**
+     * Get the underlying USBDevice, e.g. for matching against
+     * `navigator.usb` disconnect events
+     * @returns {USBDevice|null} Selected USB device, or null if none
+     */
+    getDevice() {
+        return this._device;
+    }
+
+    /**
      * Get a human-readable name for the connected device
      * @returns {string} Device name or 'No device'
      */

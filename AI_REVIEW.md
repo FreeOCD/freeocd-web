@@ -17,13 +17,23 @@ Each item has a unique ID for issue/PR cross-referencing.
 - **Browsers**: Chromium-only (Chrome, Edge) — WebUSB required
 - **License**: BSD-3-Clause (FreeOCD), MIT (DAP.js)
 - **Source modules** (all in `public/js/`):
-  - `main.js` — Entry point, UI orchestration, operation runners (flash/recover), RTT / advanced-debug handlers
+  - `main.js` — Entry point: DOM wiring, status bar, target/file selection, controller setup
+  - `app/flash-controller.js` — Flash/Recover orchestration (shared operation runner)
+  - `app/rtt-controller.js` — RTT connection lifecycle, terminal, RTT-backed utility operations
+  - `app/operation-lock.js` — Single concurrency guard for Flash/Recover/RTT
+  - `app/connection-session.js` — Owns the transport + DAP objects for one session; single dispose()
   - `core/hex-parser.js` — Intel HEX format parser (user file input)
   - `core/dap-operations.js` — Raw CMSIS-DAP transfer operations, register read/write
   - `core/probe-filters.js` — Loader for the central CMSIS-DAP probe vendor ID list
   - `core/rtt-handler.js` — SEGGER RTT control-block scan + up/down buffer I/O
   - `core/state-manager.js` — Polling-based device/RTT connection state machine with event listeners
   - `core/terminal.js` — Minimal terminal UI for RTT (no external dependencies)
+  - `core/async-utils.js` — sleep() and withTimeout() helpers
+  - `core/constants.js` — Centralized timing/limit constants
+  - `core/storage.js` — Safe localStorage wrapper
+  - `ui/logger.js` — Operation log (bounded DOM output)
+  - `ui/step-progress.js` — Step preview and live step-progress UI state
+  - `ui/settings.js` — Declarative persisted-settings and collapsible-panel bindings
   - `transport/transport-interface.js` — Abstract transport interface
   - `transport/webusb-transport.js` — WebUSB transport implementation
   - `platform/platform-handler.js` — Abstract platform handler base class
@@ -39,7 +49,20 @@ Each item has a unique ID for issue/PR cross-referencing.
 graph TD
     subgraph Browser
         UI[index.html + style.css]
-        MAIN[main.js<br/>UI orchestration]
+        MAIN[main.js<br/>Entry point + DOM wiring]
+    end
+
+    subgraph App
+        FLASHC[app/flash-controller.js<br/>Flash/Recover runner]
+        RTTC[app/rtt-controller.js<br/>RTT lifecycle]
+        LOCK[app/operation-lock.js<br/>Concurrency guard]
+        SESSION[app/connection-session.js<br/>Transport + DAP lifetime]
+    end
+
+    subgraph UIListeners[UI helpers]
+        LOGGER[ui/logger.js<br/>Operation log]
+        STEPS[ui/step-progress.js<br/>Step progress]
+        SETTINGS[ui/settings.js<br/>Persisted settings]
     end
 
     subgraph Core
@@ -72,11 +95,20 @@ graph TD
     UI --> MAIN
     MAIN --> HEX
     MAIN --> TM
-    MAIN --> WEBUSB
     MAIN --> PF
-    MAIN --> RTT
     MAIN --> SM
-    MAIN --> TERM
+    MAIN --> FLASHC
+    MAIN --> RTTC
+    MAIN --> LOGGER
+    MAIN --> STEPS
+    MAIN --> SETTINGS
+    FLASHC --> LOCK
+    FLASHC --> SESSION
+    RTTC --> LOCK
+    RTTC --> SESSION
+    RTTC --> RTT
+    RTTC --> TERM
+    SESSION --> WEBUSB
     TM --> NORDIC
     TM --> TARGETS
     PF --> PROBES
