@@ -13,5 +13,10 @@
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
     "htmlhint": "^1.9.2"
+  },
+  "overrides": {
+    "htmlhint": {
+      "glob": "^14.0.6"
+    }
   }
 }
