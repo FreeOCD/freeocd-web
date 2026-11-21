@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           check-latest: true
 
       - name: Install dev dependencies
@@ -55,7 +55,7 @@ jobs:
           echo "| JSON validation | $(status ${{ steps.json.outcome }}) |" >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
-  # Build – verify dapjs builds on Node 24
+  # Build – verify dapjs builds on Node 24 and 26
   # ---------------------------------------------------------------------------
   build:
     name: Build (Node ${{ matrix.node-version }})
@@ -63,7 +63,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24]
+        # Node 24 (previous LTS) and 26 (active LTS "Lithium" since 2026-10-28)
+        node-version: [24, 26]
 
     steps:
       - uses: actions/checkout@v7

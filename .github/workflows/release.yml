@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           check-latest: true
 
       - name: Install dev dependencies
@@ -53,7 +53,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: 26
           check-latest: true
           cache: npm
           cache-dependency-path: vendor/dapjs/package-lock.json
