@@ -35,6 +35,10 @@ describe('TargetManager with the shipped targets', () => {
         expect(def.id).toBe(id);
         expect(manager.createHandler(() => {})).toBeTruthy();
         expect(manager.getCapabilities()).toEqual(def.capabilities);
+        for (const capability of def.capabilities) {
+            expect(manager.hasCapability(capability)).toBe(true);
+        }
+        expect(manager.hasCapability('no-such-capability')).toBe(false);
     });
 });
 
