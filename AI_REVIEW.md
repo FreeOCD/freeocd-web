@@ -293,7 +293,7 @@ Copy the tables into a GitHub Issue or PR comment. Fill the **Status** column:
 | CIC-01 | High | Least-privilege permissions | Default `contents: read`. `contents: write` only in release publish job. No unnecessary token scopes. | `ci.yml`, `release.yml` | 🤖 Review `permissions` blocks in all workflows | |
 | CIC-02 | High | Release pipeline stages | Lint → Build → Publish pipeline. Each stage gates the next via `needs`. | `release.yml` | 🤖 Verify `needs` dependency chain | |
 | CIC-03 | Medium | Build artifact verification | Built `dap.umd.js` verified for minimum file size (not suspiciously small). | `ci.yml`, `release.yml` | 🤖 Verify `stat -c%s` check with threshold | |
-| CIC-04 | Medium | Concurrency control | CI uses `cancel-in-progress: true`. Release uses `cancel-in-progress: false`. | `ci.yml`, `release.yml` | 🤖 Verify `concurrency` blocks | |
+| CIC-04 | Medium | Concurrency control | CI uses `cancel-in-progress: true`. Release tag runs never cancel (`cancel-in-progress` is true only for `pull_request` dry runs). | `ci.yml`, `release.yml` | 🤖 Verify `concurrency` blocks | |
 | CIC-05 | Medium | Matrix builds | DAP.js build verified on Node.js 22 and 24 in CI. Release workflow builds on Node.js 20 (minimum supported version documented in README). | `ci.yml`, `release.yml` | 🤖 Verify matrix definition covers the CI compat versions; verify release Node version matches the README "Prerequisites" section | |
 | CIC-06 | Medium | Lint coverage | ESLint (JS), HTMLHint (HTML), JSON validation (target files) all run in CI. | `ci.yml`, `release.yml` | 🤖 Verify all three lint steps exist | |
 | CIC-07 | Low | SHA256 checksums | Release archive accompanied by `checksums-sha256.txt`. | `release.yml` | 🤖 Verify `sha256sum` step exists | |

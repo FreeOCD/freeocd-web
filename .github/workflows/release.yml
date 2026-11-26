@@ -13,6 +13,7 @@ on:
       - "package-lock.json"
       - "scripts/**"
       - "vendor/**"
+      - "public/**"
 
 permissions:
   contents: read
@@ -165,7 +166,6 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release
-          digest-mismatch: error
           path: |
             freeocd-web-*.zip
             checksums-sha256.txt

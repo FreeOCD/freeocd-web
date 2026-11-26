@@ -274,6 +274,7 @@ public/                         # Deployable static site
 │   └── nordic/nrf54/           # Nordic nRF54 series
 └── lib/                        # Built dependencies (gitignored)
 scripts/                        # Development scripts
+├── check-version.js            # package.json / lockfile / release tag version check
 └── validate-json.js            # JSON validator for public/targets/
 vendor/dapjs/                   # DAP.js source (git submodule)
 AI_REVIEW.md                    # Code review checklist for AI/human reviewers
