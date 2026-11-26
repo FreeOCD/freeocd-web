@@ -25,7 +25,7 @@ const html = fs.readFileSync(path.join(publicDir, "index.html"), "utf8");
 const scripts = [];
 for (const [, attr, value] of html.matchAll(/\b(src|href)="([^"]+)"/g)) {
   if (/^([a-z]+:|\/\/|#)/i.test(value)) continue;
-  const rel = path.posix.normalize(value.split(/[?#]/)[0]);
+  const rel = path.posix.normalize(value.split(/[?#]/)[0]).replace(/^\/+/, "");
   exists(rel, "index.html");
   if (attr === "src" && rel.startsWith("js/")) scripts.push(rel);
 }
