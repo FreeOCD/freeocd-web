@@ -8,13 +8,17 @@
     "lint": "eslint",
     "lint:html": "htmlhint 'public/**/*.html'",
     "lint:json": "node scripts/validate-json.js",
-    "check:version": "node scripts/check-version.js"
+    "check:version": "node scripts/check-version.js",
+    "lint:static": "node scripts/check-static.js",
+    "test": "vitest run",
+    "test:dapjs": "node scripts/smoke-dapjs.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
-    "htmlhint": "^1.9.2"
+    "htmlhint": "^1.9.2",
+    "vitest": "^5.1.1"
   },
   "overrides": {
     "htmlhint": {

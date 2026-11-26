@@ -104,6 +104,12 @@ jobs:
       - name: Validate target JSON
         run: npm run lint:json
 
+      - name: Check static assets
+        run: npm run lint:static
+
+      - name: Unit tests
+        run: npm test
+
   # ---------------------------------------------------------------------------
   # Build – produce the deployable public/ directory
   # ---------------------------------------------------------------------------
@@ -138,6 +144,11 @@ jobs:
           mkdir -p public/lib
           cp vendor/dapjs/dist/dap.umd.js public/lib/dap.umd.js
           cp vendor/dapjs/LICENSE public/lib/dapjs-LICENSE.txt
+
+      - name: Smoke-test DAP.js bundle and static assets
+        run: |
+          node scripts/smoke-dapjs.js
+          node scripts/check-static.js --with-lib
 
       - name: Verify build artifacts
         run: |

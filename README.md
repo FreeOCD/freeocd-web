@@ -274,8 +274,11 @@ public/                         # Deployable static site
 │   └── nordic/nrf54/           # Nordic nRF54 series
 └── lib/                        # Built dependencies (gitignored)
 scripts/                        # Development scripts
+├── check-static.js             # Checks index.html assets, module imports and targets exist
 ├── check-version.js            # package.json / lockfile / release tag version check
+├── smoke-dapjs.js              # Smoke test for the built public/lib/dap.umd.js
 └── validate-json.js            # JSON validator for public/targets/
+tests/                          # Vitest unit tests (npm test)
 vendor/dapjs/                   # DAP.js source (git submodule)
 AI_REVIEW.md                    # Code review checklist for AI/human reviewers
 ```

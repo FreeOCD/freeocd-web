@@ -49,6 +49,14 @@ jobs:
         id: version
         run: npm run check:version
 
+      - name: Check static assets
+        id: static
+        run: npm run lint:static
+
+      - name: Unit tests
+        id: test
+        run: npm test
+
       - name: Lint summary
         if: always()
         run: |
@@ -61,6 +69,8 @@ jobs:
             echo "| HTMLHint | $(status ${{ steps.htmlhint.outcome }}) |"
             echo "| JSON validation | $(status ${{ steps.json.outcome }}) |"
             echo "| Version consistency | $(status ${{ steps.version.outcome }}) |"
+            echo "| Static assets | $(status ${{ steps.static.outcome }}) |"
+            echo "| Unit tests | $(status ${{ steps.test.outcome }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
@@ -109,6 +119,11 @@ jobs:
           mkdir -p public/lib
           cp vendor/dapjs/dist/dap.umd.js public/lib/dap.umd.js
           cp vendor/dapjs/LICENSE public/lib/dapjs-LICENSE.txt
+
+      - name: Smoke-test DAP.js bundle and static assets
+        run: |
+          node scripts/smoke-dapjs.js
+          node scripts/check-static.js --with-lib
 
       - name: Verify build artifacts
         run: |

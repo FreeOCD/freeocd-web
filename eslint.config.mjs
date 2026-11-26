@@ -32,6 +32,16 @@ export default [
     },
   },
   {
+    files: ["tests/**/*.js", "vitest.config.mjs"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     ignores: ["public/lib/", "vendor/", "node_modules/"],
   },
 ];
