@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ### Prerequisites
 
-- Node.js v22.12+ (v26 used by CI) for building DAP.js and running lint and tests
+- Node.js ^22.13, ^24 or >=26 (CI uses 26) for building DAP.js and running lint and tests
 - A Chromium-based browser (Chrome or Edge) with WebUSB support
 - A CMSIS-DAP compatible debug probe and target MCU for testing
 
