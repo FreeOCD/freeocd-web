@@ -34,7 +34,7 @@ describe('TargetManager with the shipped targets', () => {
         expect(fetch.mock.calls.length).toBe(calls);
         expect(def.id).toBe(id);
         expect(manager.createHandler(() => {})).toBeTruthy();
-        expect(manager.hasCapability('flash')).toBe(true);
+        expect(manager.getCapabilities()).toEqual(def.capabilities);
     });
 });
 
