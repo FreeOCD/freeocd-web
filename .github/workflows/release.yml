@@ -4,20 +4,81 @@ on:
   push:
     tags:
       - 'v*'
+  # Dry-run: build and package on PRs that touch the release inputs; only a
+  # tag push reaches the publish job.
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "scripts/**"
+      - "vendor/**"
+      - "public/**"
 
 permissions:
   contents: read
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Validate – the tag must match package.json, point into main history, and
+  # the production environment must still require approval for v* tags.
+  # ---------------------------------------------------------------------------
+  validate:
+    name: Validate tag and release policy
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      label: ${{ steps.version.outputs.label }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify the tag matches package.json and main
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          node scripts/check-version.js
+          version=$(node -p "require('./package.json').version")
+          if [[ "$EVENT_NAME" != "push" ]]; then
+            echo "label=v${version}-dryrun" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor HEAD refs/remotes/origin/main; then
+            echo "::error::Tag $GITHUB_REF_NAME must point to a commit in main history"
+            exit 1
+          fi
+          echo "label=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Verify production requires approval and allows only v* tags
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          endpoint="repos/$GITHUB_REPOSITORY/environments/production"
+          gh api "$endpoint" | jq -e '
+            .deployment_branch_policy.custom_branch_policies and
+            any(.protection_rules[]; .type == "required_reviewers" and (.reviewers | length > 0))
+          ' > /dev/null || { echo "::error::production must require a reviewer and use custom deployment policies"; exit 1; }
+          gh api "$endpoint/deployment-branch-policies" | jq -e '
+            any(.branch_policies[]; .name == "v*" and .type == "tag")
+          ' > /dev/null || { echo "::error::production must allow the v* tag deployment policy"; exit 1; }
+
   # ---------------------------------------------------------------------------
   # Lint – same checks as CI to gate the release
   # ---------------------------------------------------------------------------
   lint:
     name: Lint
+    needs: validate
     runs-on: ubuntu-slim
     timeout-minutes: 10
     steps:
@@ -48,7 +109,7 @@ jobs:
   # ---------------------------------------------------------------------------
   build:
     name: Build
-    needs: lint
+    needs: [validate, lint]
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
@@ -90,9 +151,11 @@ jobs:
           done
 
       - name: Create release archive
+        env:
+          RELEASE_LABEL: ${{ needs.validate.outputs.label }}
         run: |
           cd public
-          zip -r "../freeocd-web-${GITHUB_REF_NAME}.zip" .
+          zip -r "../freeocd-web-${RELEASE_LABEL}.zip" .
 
       - name: Generate checksums
         run: |
@@ -106,6 +169,7 @@ jobs:
           path: |
             freeocd-web-*.zip
             checksums-sha256.txt
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # Publish – create GitHub Release (least-privilege: write only here)
@@ -113,22 +177,35 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment: production
     permissions:
       contents: write
+      id-token: write
+      attestations: write
 
     steps:
       - name: Download release artifacts
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: release
+          digest-mismatch: error
 
       - name: List release files
         run: ls -la freeocd-web-*.zip checksums-sha256.txt
 
+      - name: Verify checksums
+        run: sha256sum -c checksums-sha256.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: freeocd-web-*.zip
+
       - name: Create GitHub Release
+        id: github-release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         # zizmor: ignore[superfluous-actions] keeps gh-release for generated notes + file upload UX
         with:
@@ -138,12 +215,15 @@ jobs:
             checksums-sha256.txt
 
       - name: Release summary
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           RELEASE_NAME: ${{ github.ref_name }}
+          GITHUB_RELEASE_OUTCOME: ${{ steps.github-release.outcome }}
         run: |
           {
             echo "## Release ${RELEASE_NAME}"
+            echo ""
+            echo "GitHub Release: ${GITHUB_RELEASE_OUTCOME:-skipped}"
             echo ""
             echo "### Artifacts"
             echo '```'

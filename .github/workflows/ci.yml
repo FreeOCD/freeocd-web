@@ -45,6 +45,10 @@ jobs:
         id: json
         run: npm run lint:json
 
+      - name: Check version consistency
+        id: version
+        run: npm run check:version
+
       - name: Lint summary
         if: always()
         run: |
@@ -56,6 +60,7 @@ jobs:
             echo "| ESLint | $(status ${{ steps.eslint.outcome }}) |"
             echo "| HTMLHint | $(status ${{ steps.htmlhint.outcome }}) |"
             echo "| JSON validation | $(status ${{ steps.json.outcome }}) |"
+            echo "| Version consistency | $(status ${{ steps.version.outcome }}) |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ---------------------------------------------------------------------------
