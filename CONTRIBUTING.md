@@ -6,7 +6,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ### Prerequisites
 
-- Node.js v20+ (for building DAP.js)
+- Node.js ^22.13, ^24 or >=26 (CI uses 26) for building DAP.js and running lint and tests
 - A Chromium-based browser (Chrome or Edge) with WebUSB support
 - A CMSIS-DAP compatible debug probe and target MCU for testing
 
@@ -15,6 +15,7 @@ Thank you for your interest in contributing! This document provides guidelines f
 ```console
 $ git clone --recurse-submodules https://github.com/FreeOCD/freeocd-web.git
 $ cd freeocd-web
+$ npm ci
 $ cd vendor/dapjs && npm install && npm run build && cd ../..
 $ mkdir -p public/lib
 $ cp vendor/dapjs/dist/dap.umd.js public/lib/dap.umd.js
@@ -27,9 +28,9 @@ Open `http://localhost:8000` in your browser to test.
 ## Code Style
 
 - This is a **vanilla HTML + JavaScript** project with no build tools or frameworks.
-- All source files use ES Modules (`import`/`export`).
+- Browser source files (`public/js/`) and tests (`tests/`) use ES Modules (`import`/`export`); Node scripts in `scripts/` use CommonJS.
 - Use `const` and `let` (never `var`).
-- Follow existing code style and indentation (4 spaces).
+- Follow existing code style and indentation (4 spaces in `public/js/` and `tests/`; 2 spaces in `scripts/` and config files).
 - Keep source code comments in English.
 
 ## Branch Strategy
@@ -42,7 +43,7 @@ Open `http://localhost:8000` in your browser to test.
 1. Fork the repository and create a feature branch from `main`.
 2. Keep PRs focused and small. One PR per feature or fix.
 3. Write clear commit messages in English.
-4. Ensure the CI workflow passes before requesting review.
+4. Run `npm run lint`, `npm run lint:static` and `npm test` locally, and add Vitest tests under `tests/` for new pure logic (parsers, loaders, state). Ensure the CI workflow passes before requesting review.
 5. Update documentation if your change affects user-facing behavior.
 
 ## Adding a New Target MCU
