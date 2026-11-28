@@ -6,6 +6,8 @@ fail() {
   exit 1
 }
 
+bash "$(dirname "$0")/publish_release.sh" --check-tag
+
 if [[ "${1:-}" != --publish-check ]]; then
   [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/tags/v* ]] ||
     fail "Expected a v* tag push"

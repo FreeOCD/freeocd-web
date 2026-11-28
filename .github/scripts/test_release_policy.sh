@@ -109,9 +109,10 @@ bash "$publisher" --check-version 1.2.3-rc.1+linux
 GITHUB_REF_NAME=v1.2.3-rc.1 bash "$publisher" --check-vsix-tag 1.2.3
 GITHUB_REF_NAME=v1.2.4-rc.1 reject 'Tag does not match' bash "$publisher" --check-vsix-tag 1.2.3
 check_publish v1.2.3
-check_publish v1.2.3+build-linux
+GITHUB_REF_NAME=v1.2.3+build-linux reject 'Invalid release tag' bash "$validator"
+GITHUB_REF_NAME=v1.2.3+build-linux reject 'Invalid release tag' bash "$publisher" 'artifact file.zip'
 check_publish v1.2.3-rc.1 --prerelease --latest=false
-check_publish v1.2.3-rc.1+build-linux --prerelease --latest=false
+GITHUB_REF_NAME=v1.2.3-rc.1+build-linux reject 'Invalid release tag' bash "$validator" --publish-check
 
 mkdir scripts
 cp "$version_check" scripts/
