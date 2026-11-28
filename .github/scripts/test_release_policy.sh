@@ -103,9 +103,10 @@ check_publish() {
   fi
 }
 
-reject 'Invalid SemVer' bash "$publisher" --check-version 1.02.3
-reject 'Invalid SemVer' bash "$publisher" --check-version 1.2.3-rc.01
-bash "$publisher" --check-version 1.2.3-rc.1+linux
+reject 'Invalid release version' bash "$publisher" --check-version 1.02.3
+reject 'Invalid release version' bash "$publisher" --check-version 1.2.3-rc.01
+reject 'Invalid release version' bash "$publisher" --check-version 1.2.3-rc.1+linux
+bash "$publisher" --check-version 1.2.3-rc.1
 GITHUB_REF_NAME=v1.2.3-rc.1 bash "$publisher" --check-vsix-tag 1.2.3
 GITHUB_REF_NAME=v1.2.4-rc.1 reject 'Tag does not match' bash "$publisher" --check-vsix-tag 1.2.3
 check_publish v1.2.3

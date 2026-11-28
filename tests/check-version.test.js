@@ -32,7 +32,7 @@ describe('check-version', () => {
     expect(check(version)).toContain(`Version check passed: ${version}`);
   });
 
-  it.each(['01.2.3', '1.2.03', '1.2.3-rc.01', '1.2.3-rc..1', '1.2'])(
+  it.each(['01.2.3', '1.2.03', '1.2.3-rc.01', '1.2.3-rc..1', '1.2', '1.2.3+linux'])(
     'rejects %s', (version) => {
       expect(() => check(version)).toThrow(/is not valid SemVer/);
     },

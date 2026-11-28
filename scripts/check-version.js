@@ -21,8 +21,7 @@ const version = pkg.version;
 const number = '(0|[1-9][0-9]*)';
 const prerelease = `(${number}|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)`;
 const semver = new RegExp(
-  `^${number}\\.${number}\\.${number}(-${prerelease}(\\.${prerelease})*)?` +
-    '(\\+[0-9a-zA-Z-]+(\\.[0-9a-zA-Z-]+)*)?$',
+  `^${number}\\.${number}\\.${number}(-${prerelease}(\\.${prerelease})*)?$`,
 );
 if (!semver.test(version || '')) {
   fail(`package.json version "${version}" is not valid SemVer`);

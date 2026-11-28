@@ -4,11 +4,10 @@ set -euo pipefail
 number='(0|[1-9][0-9]*)'
 pre_id="$number|[0-9]*[A-Za-z-][0-9A-Za-z-]*"
 tag_semver="$number\\.$number\\.$number(-($pre_id)(\\.($pre_id))*)?"
-semver="$tag_semver(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?"
 
 case "${1:-}" in
   --check-version)
-    [[ "$2" =~ ^$semver$ ]] || { printf 'Invalid SemVer: %s\n' "$2" >&2; exit 1; }
+    [[ "$2" =~ ^$tag_semver$ ]] || { printf 'Invalid release version: %s\n' "$2" >&2; exit 1; }
     exit 0
     ;;
   --check-vsix-tag)
