@@ -133,6 +133,19 @@ The [`freeocd-vscode-extension`](https://github.com/FreeOCD/freeocd-vscode-exten
 
 2. **Integrate with the UI**: Update `public/js/main.js` to allow transport selection.
 
+## Releasing
+
+Update `package.json` and `package-lock.json` through a normal PR and confirm CI
+on the merged `main` commit. Push an unsigned tag that matches the package
+version, such as `vX.Y.Z` or `vX.Y.Z-rc.1`. After `production` approval, the
+workflow publishes the GitHub Release with checksums and build provenance.
+A SemVer prerelease is not marked Latest.
+
+If publication left an unpublished draft for the tag, delete the draft even
+if it contains partial assets, keep the tag, and use **Re-run failed jobs**.
+If the Release is already published, do not change it or rerun publication.
+Verify the assets and checksums and release a new patch version if needed.
+
 ## License Compliance
 
 - **FreeOCD WebDebugger** is licensed under the BSD 3-Clause License.
