@@ -141,6 +141,8 @@ version, such as `vX.Y.Z` or `vX.Y.Z-rc.1`. After `production` approval, the
 workflow publishes the GitHub Release with checksums and build provenance.
 A SemVer prerelease is not marked Latest.
 
+Use `vX.Y.Z` or `vX.Y.Z-<prerelease>` for release tags, without `+build` metadata.
+
 If publication left an unpublished draft for the tag, delete the draft even
 if it contains partial assets, keep the tag, and use **Re-run failed jobs**.
 If the Release is already published, do not change it or rerun publication.
