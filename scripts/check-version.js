@@ -18,8 +18,13 @@ const pkg = require(path.join(root, 'package.json'));
 const lock = require(path.join(root, 'package-lock.json'));
 const version = pkg.version;
 
-if (!/^\d+\.\d+\.\d+$/.test(version || '')) {
-  fail(`package.json version "${version}" is not MAJOR.MINOR.PATCH`);
+const number = '(0|[1-9][0-9]*)';
+const prerelease = `(${number}|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)`;
+const semver = new RegExp(
+  `^${number}\\.${number}\\.${number}(-${prerelease}(\\.${prerelease})*)?$`,
+);
+if (!semver.test(version || '')) {
+  fail(`package.json version "${version}" is not valid SemVer`);
 }
 for (const [label, value] of [
   ['package-lock.json version', lock.version],
